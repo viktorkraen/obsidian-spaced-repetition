@@ -131,8 +131,7 @@ export default {
     REVIEW_DECK_ORDER_RANDOM_DECK_AND_CARD: "Zufällige Karte von zufälligem Stapel",
     DISABLE_CLOZE_CARDS: "Lückentextkarten deaktivieren?",
     CONVERT_HIGHLIGHTS_TO_CLOZES: "==Hervorgehobenen== Text in Lückentextkarten umwandeln?",
-    CONVERT_HIGHLIGHTS_TO_CLOZES_DESC:
-        'Füge/entferne das <code>${defaultPattern}</code> zu deinen "Lückentextmuster" hinzu',
+    CONVERT_HIGHLIGHTS_TO_CLOZES_DESC: "Fügen Sie <code>${defaultPattern}</code> zu Ihren 'Cloze-Mustern' hinzu/entfernen Sie es",
     CONVERT_BOLD_TEXT_TO_CLOZES: "**Fettgedruckten** Text in Lückentextkarten umwandeln?",
     CONVERT_BOLD_TEXT_TO_CLOZES_DESC:
         'Füge/entferne das <code>${defaultPattern}</code> zu deinen "Lückentextmuster" hinzu',
@@ -140,7 +139,9 @@ export default {
         "{{Geschweifte Klammern}} Text in Lückentextkarten umwandeln?",
     CONVERT_CURLY_BRACKETS_TO_CLOZES_DESC:
         'Füge/entferne das <code>${defaultPattern}</code> zu deinen "Lückentextmuster" hinzu',
-    CLOZE_PATTERNS: "Lückentextmuster",
+    CONVERT_HEADINGS_TO_BASIC: "Überschriften in Basiskarten umwandeln",
+    CONVERT_HEADINGS_TO_BASIC_DESC: "Überschriften in Basiskarten mit dem Inhalt darunter als Antwort umwandeln",
+    CLOZE_PATTERNS: "Cloze-Muster",
     CLOZE_PATTERNS_DESC:
         'Geben Sie Lückentextmuster durch Zeilenumbrüche getrennt ein. Check the <a href="${docsUrl}">wiki</a> for guidance.',
     INLINE_CARDS_SEPARATOR: "Trennzeichen für einzeilige Lernkarten",

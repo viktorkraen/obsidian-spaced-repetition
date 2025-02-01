@@ -1,6 +1,12 @@
 import { parse, ParsedQuestionInfo, setDebugParser } from "src/parser";
 import { ParserOptions } from "src/parser";
 import { CardType } from "src/question";
+import { ISRFile } from "src/file";
+import { TopicPath, TopicPathList } from "src/topic-path";
+import { Card } from "src/card";
+import { TextDirection } from "src/utils/strings";
+import { frontmatterTagPseudoLineNum } from "src/file";
+import { TFile, TagCache } from "obsidian";
 
 const parserOptions: ParserOptions = {
     singleLineCardSeparator: "::",
@@ -13,6 +19,7 @@ const parserOptions: ParserOptions = {
         "**[123;;]answer[;;hint]**",
         "{{[123;;]answer[;;hint]}}",
     ],
+    headingAsBasic: false,
 };
 
 /**
@@ -61,6 +68,7 @@ test("Test parsing of single line basic cards", () => {
             multilineReversedCardSeparator: "??",
             multilineCardEndMarker: "---",
             clozePatterns: [],
+            headingAsBasic: false,
         }),
     ).toEqual([[CardType.SingleLineBasic, "Question&&Answer", 0, 0]]);
     expect(
@@ -71,6 +79,7 @@ test("Test parsing of single line basic cards", () => {
             multilineReversedCardSeparator: "??",
             multilineCardEndMarker: "---",
             clozePatterns: [],
+            headingAsBasic: false,
         }),
     ).toEqual([[CardType.SingleLineBasic, "Question=Answer", 0, 0]]);
 
@@ -83,6 +92,7 @@ test("Test parsing of single line basic cards", () => {
             multilineReversedCardSeparator: "??",
             multilineCardEndMarker: "---",
             clozePatterns: [],
+            headingAsBasic: false,
         }),
     ).toEqual([]);
 });
@@ -109,6 +119,7 @@ test("Test parsing of single line reversed cards", () => {
             multilineReversedCardSeparator: "??",
             multilineCardEndMarker: "---",
             clozePatterns: [],
+            headingAsBasic: false,
         }),
     ).toEqual([[CardType.SingleLineReversed, "Question&&&Answer", 0, 0]]);
     expect(
@@ -119,6 +130,7 @@ test("Test parsing of single line reversed cards", () => {
             multilineReversedCardSeparator: "??",
             multilineCardEndMarker: "---",
             clozePatterns: [],
+            headingAsBasic: false,
         }),
     ).toEqual([[CardType.SingleLineReversed, "Question::Answer", 0, 0]]);
     expect(
@@ -129,6 +141,7 @@ test("Test parsing of single line reversed cards", () => {
             multilineReversedCardSeparator: "<;>",
             multilineCardEndMarker: "---",
             clozePatterns: [],
+            headingAsBasic: false,
         }),
     ).toEqual([
         [CardType.SingleLineBasic, "Qn 1?:>Answer.", 0, 0],
@@ -144,6 +157,7 @@ test("Test parsing of single line reversed cards", () => {
             multilineReversedCardSeparator: "??",
             multilineCardEndMarker: "---",
             clozePatterns: [],
+            headingAsBasic: false,
         }),
     ).toEqual([]);
 });
@@ -183,6 +197,7 @@ test("Test parsing of multi line basic cards", () => {
             multilineReversedCardSeparator: "??",
             multilineCardEndMarker: "---",
             clozePatterns: ["**[123;;]answer[;;hint]**"],
+            headingAsBasic: false,
         }),
     ).toEqual([[CardType.MultiLineBasic, "Question\n?\nAnswer line 1\nAnswer line 2", 0, 4]]);
     expect(
@@ -195,6 +210,7 @@ test("Test parsing of multi line basic cards", () => {
                 multilineReversedCardSeparator: "??",
                 multilineCardEndMarker: "---",
                 clozePatterns: ["**[123;;]answer[;;hint]**"],
+                headingAsBasic: false,
             },
         ),
     ).toEqual([
@@ -211,6 +227,7 @@ test("Test parsing of multi line basic cards", () => {
                 multilineReversedCardSeparator: "??",
                 multilineCardEndMarker: "---",
                 clozePatterns: ["**[123;;]answer[;;hint]**"],
+                headingAsBasic: false,
             },
         ),
     ).toEqual([
@@ -232,6 +249,7 @@ test("Test parsing of multi line basic cards", () => {
             multilineReversedCardSeparator: "??",
             multilineCardEndMarker: "",
             clozePatterns: [],
+            headingAsBasic: false,
         }),
     ).toEqual([[CardType.MultiLineBasic, "Question\n@@\nAnswer", 0, 2]]);
 
@@ -244,6 +262,7 @@ test("Test parsing of multi line basic cards", () => {
             multilineReversedCardSeparator: "??",
             multilineCardEndMarker: "---",
             clozePatterns: [],
+            headingAsBasic: false,
         }),
     ).toEqual([]);
 });
@@ -277,6 +296,7 @@ test("Test parsing of multi line reversed cards", () => {
                 "**[123;;]answer[;;hint]**",
                 "{{[123;;]answer[;;hint]}}",
             ],
+            headingAsBasic: false,
         }),
     ).toEqual([[CardType.MultiLineReversed, "Question\n??\nAnswer line 1\nAnswer line 2", 0, 4]]);
     expect(
@@ -293,6 +313,7 @@ test("Test parsing of multi line reversed cards", () => {
                     "**[123;;]answer[;;hint]**",
                     "{{[123;;]answer[;;hint]}}",
                 ],
+                headingAsBasic: false,
             },
         ),
     ).toEqual([
@@ -309,6 +330,7 @@ test("Test parsing of multi line reversed cards", () => {
             multilineReversedCardSeparator: "@@@",
             multilineCardEndMarker: "---",
             clozePatterns: [],
+            headingAsBasic: false,
         }),
     ).toEqual([[CardType.MultiLineReversed, "Question\n@@@\nAnswer", 0, 2]]);
     expect(
@@ -339,6 +361,7 @@ Line 5
                 multilineReversedCardSeparator: "???",
                 multilineCardEndMarker: "????",
                 clozePatterns: [],
+                headingAsBasic: false,
             },
         ),
     ).toEqual([
@@ -355,6 +378,7 @@ Line 5
             multilineReversedCardSeparator: "\t",
             multilineCardEndMarker: "---",
             clozePatterns: [],
+            headingAsBasic: false,
         }),
     ).toEqual([]);
 });
@@ -396,6 +420,7 @@ test("Test parsing of cloze cards", () => {
             multilineReversedCardSeparator: "??",
             multilineCardEndMarker: "",
             clozePatterns: ["**[123;;]answer[;;hint]**", "{{[123;;]answer[;;hint]}}"],
+            headingAsBasic: false,
         }),
     ).toEqual([]);
 
@@ -435,6 +460,7 @@ test("Test parsing of cloze cards", () => {
             multilineReversedCardSeparator: "??",
             multilineCardEndMarker: "",
             clozePatterns: ["==[123;;]answer[;;hint]==", "{{[123;;]answer[;;hint]}}"],
+            headingAsBasic: false,
         }),
     ).toEqual([]);
 
@@ -475,6 +501,7 @@ test("Test parsing of cloze cards", () => {
             multilineReversedCardSeparator: "??",
             multilineCardEndMarker: "",
             clozePatterns: ["==[123;;]answer[;;hint]==", "**[123;;]answer[;;hint]**"],
+            headingAsBasic: false,
         }),
     ).toEqual([]);
 
@@ -489,6 +516,7 @@ test("Test parsing of cloze cards", () => {
             multilineReversedCardSeparator: "??",
             multilineCardEndMarker: "",
             clozePatterns: ["{{[123::]answer[::hint]}}"],
+            headingAsBasic: false,
         }),
     ).toEqual([[CardType.Cloze, "Brazilians speak {{Portuguese::language}}", 0, 0]]);
     expect(
@@ -501,6 +529,7 @@ test("Test parsing of cloze cards", () => {
                 multilineReversedCardSeparator: "??",
                 multilineCardEndMarker: "",
                 clozePatterns: ["{{[123::]answer[::hint]}}"],
+                headingAsBasic: false,
             },
         ),
     ).toEqual([
@@ -517,6 +546,7 @@ test("Test parsing of cloze cards", () => {
                 multilineReversedCardSeparator: "??",
                 multilineCardEndMarker: "",
                 clozePatterns: ["{{[123::]answer[::hint]}}"],
+                headingAsBasic: false,
             },
         ),
     ).toEqual([
@@ -533,6 +563,7 @@ test("Test parsing of cloze cards", () => {
             multilineReversedCardSeparator: "??",
             multilineCardEndMarker: "",
             clozePatterns: ["==answer==[^\\[hint\\]][\\[^123\\]]"],
+            headingAsBasic: false,
         }),
     ).toEqual([
         [CardType.Cloze, "Brazilians speak ==Portuguese==", 0, 0],
@@ -548,6 +579,7 @@ test("Test parsing of cloze cards", () => {
                 multilineReversedCardSeparator: "??",
                 multilineCardEndMarker: "",
                 clozePatterns: ["==answer==[^\\[hint\\]][\\[^123\\]]"],
+                headingAsBasic: false,
             },
         ),
     ).toEqual([
@@ -564,6 +596,7 @@ test("Test parsing of cloze cards", () => {
                 multilineReversedCardSeparator: "??",
                 multilineCardEndMarker: "",
                 clozePatterns: ["==answer==[^\\[hint\\]][\\[^123\\]]"],
+                headingAsBasic: false,
             },
         ),
     ).toEqual([
@@ -585,6 +618,7 @@ test("Test parsing of cloze cards", () => {
                 multilineReversedCardSeparator: "??",
                 multilineCardEndMarker: "---",
                 clozePatterns: ["==[123;;]answer[;;hint]=="],
+                headingAsBasic: false,
             },
         ),
     ).toEqual([
@@ -611,6 +645,7 @@ test("Test parsing of cloze cards", () => {
             multilineReversedCardSeparator: "??",
             multilineCardEndMarker: "",
             clozePatterns: [],
+            headingAsBasic: false,
         }),
     ).toEqual([]);
 });
@@ -779,6 +814,7 @@ test("Test not parsing 'cards' in codeblocks", () => {
                 "**[123;;]answer[;;hint]**",
                 "{{[123;;]answer[;;hint]}}",
             ],
+            headingAsBasic: false,
         }),
     ).toEqual([]);
 
@@ -815,4 +851,123 @@ describe("Parser debug messages", () => {
         // restore original console error log
         logSpy.mockRestore();
     });
+});
+
+test("Header based cards with tags", async () => {
+    const noteText = `---
+created: 2024-03-11 10:41
+tags:
+  - flashcards
+---
+# What is Lorem Ipsum?
+-- --
+Lorem Ipsum is simply dummy text
+-- --
+
+## Why do we use it?
+-- --
+It is a long established fact
+-- --
+`;
+    const noteFile: ISRFile = {
+        path: "test.md",
+        basename: "test",
+        tfile: null as unknown as TFile,
+        getFrontmatter: async () => new Map([["tags", "flashcards"]]),
+        getAllTagsFromCache: () => ["#flashcards"],
+        getAllTagsFromText: (): TagCache[] => [{
+            tag: "#flashcards",
+            position: {
+                start: { line: frontmatterTagPseudoLineNum, col: 0, offset: 0 },
+                end: { line: frontmatterTagPseudoLineNum, col: 0, offset: 0 }
+            }
+        }],
+        getQuestionContext: (): string[] => [],
+        getTextDirection: () => TextDirection.Ltr,
+        read: async () => noteText,
+        write: async () => {}
+    };
+    const folderTopicPath: TopicPath = TopicPath.emptyPath;
+    
+    const expected = [
+        {
+            questionType: CardType.HeaderBasic,
+            topicPathList: TopicPathList.fromPsv("#flashcards", frontmatterTagPseudoLineNum),
+            cards: [
+                new Card({
+                    front: "What is Lorem Ipsum?",
+                    back: "Lorem Ipsum is simply dummy text"
+                })
+            ]
+        },
+        {
+            questionType: CardType.HeaderBasic,
+            topicPathList: TopicPathList.fromPsv("#flashcards", frontmatterTagPseudoLineNum),
+            cards: [
+                new Card({
+                    front: "Why do we use it?",
+                    back: "It is a long established fact"
+                })
+            ]
+        }
+    ];
+
+    const parser = parse;
+    expect(
+        await parser(
+            noteText,
+            {
+                singleLineCardSeparator: "::",
+                singleLineReversedCardSeparator: ":::",
+                multilineCardSeparator: "?",
+                multilineReversedCardSeparator: "??",
+                multilineCardEndMarker: "",
+                clozePatterns: [],
+                headingAsBasic: true
+            }
+        )
+    ).toMatchObject(expected);
+});
+
+test("Header based cards - various scenarios", async () => {
+    const parserOptionsWithHeaders = {
+        ...parserOptions,
+        headingAsBasic: true
+    };
+
+    // Базовий випадок
+    expect(parseT(`# Simple Question
+-- --
+Simple Answer
+-- --`, parserOptionsWithHeaders)).toEqual([
+        [CardType.HeaderBasic, "Simple Question\nSimple Answer", 0, 3],
+    ]);
+
+    // Вкладені заголовки
+    expect(parseT(`# Main Topic
+-- --
+Main Answer
+-- --
+
+## Subtopic
+-- --
+Sub Answer
+-- --`, parserOptionsWithHeaders)).toEqual([
+        [CardType.HeaderBasic, "Main Topic\nMain Answer", 0, 3],
+        [CardType.HeaderBasic, "Subtopic\nSub Answer", 5, 8],
+    ]);
+
+    // Ігнорування неправильного форматування
+    expect(parseT(`# Question without separator
+Some text`, parserOptionsWithHeaders)).toEqual([]);
+
+    // Багаторядкова відповідь
+    expect(parseT(`# Complex Question
+-- --
+Line 1
+Line 2
+Line 3
+-- --`, parserOptionsWithHeaders)).toEqual([
+        [CardType.HeaderBasic, "Complex Question\nLine 1\nLine 2\nLine 3", 0, 5],
+    ]);
 });

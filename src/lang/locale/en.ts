@@ -127,6 +127,8 @@ export default {
     CONVERT_CURLY_BRACKETS_TO_CLOZES: "Convert {{curly brackets}} to clozes",
     CONVERT_CURLY_BRACKETS_TO_CLOZES_DESC:
         'Add/remove the <code>${defaultPattern}</code> from your "Cloze Patterns"',
+    CONVERT_HEADINGS_TO_BASIC: "Convert headings to basic flashcards",
+    CONVERT_HEADINGS_TO_BASIC_DESC: "Convert markdown headings (# Heading) to basic flashcards with the heading as the question and the content below as the answer",
     CLOZE_PATTERNS: "Cloze Patterns",
     CLOZE_PATTERNS_DESC:
         'Enter cloze patterns separated by newlines. Check the <a href="${docsUrl}">wiki</a> for guidance.',
@@ -231,4 +233,20 @@ export default {
     SEARCH: "Search",
     PREVIOUS: "Previous",
     NEXT: "Next",
+
+    // TTS Settings
+    TEXT_TO_SPEECH: "Text to Speech",
+    ENABLE_TTS: "Enable Text to Speech",
+    ENABLE_TTS_DESC: "Enable text to speech for flashcards with language tags (e.g. #flashcards-tts-en)",
+    TTS_VOLUME: "TTS Volume",
+    TTS_VOLUME_DESC: "Set the volume for text to speech playback",
+    TTS_SPEED: "TTS Speed",
+    TTS_SPEED_DESC: "Set the playback speed for text to speech",
+
+    // TTS Errors
+    TTS_ERROR_NOT_AVAILABLE: "Android TTS is not available. Please check if TTS is enabled in Android Settings -> Accessibility -> Text-to-speech output",
+    TTS_ERROR_INIT: "TTS init error: Please check if TTS is enabled in Android Settings -> Accessibility -> Text-to-speech output",
+    TTS_ERROR_NO_VOICES: "No TTS voices found. Please install language pack in Android Settings -> Accessibility -> Text-to-speech output -> Preferred engine settings -> Install voice data",
+    TTS_ERROR_CHECK_SETTINGS: "TTS is not available. Please check:\n1. TTS is enabled in Android Settings -> Accessibility -> Text-to-speech output\n2. Language pack is installed for your language\n3. Preferred TTS engine is selected",
+    TTS_ERROR_FAILED_VOICES: "Failed to get TTS voices. Please check if language pack is installed.",
 };

@@ -126,6 +126,8 @@ export default {
     CONVERT_HIGHLIGHTS_TO_CLOZES: "Convertire ==testo evidenziato== in spazi da riempire?",
     CONVERT_HIGHLIGHTS_TO_CLOZES_DESC:
         'Aggiungi/rimuovi <code>${defaultPattern}</code> dai tuoi "Modelli per spazi da riempire"',
+    CONVERT_HEADINGS_TO_BASIC: "Converti intestazioni in schede base",
+    CONVERT_HEADINGS_TO_BASIC_DESC: "Converti intestazioni in schede base con il contenuto sottostante come risposta",
     CONVERT_BOLD_TEXT_TO_CLOZES: "Convertire **testo in grassetto** in spazi da riempire",
     CONVERT_BOLD_TEXT_TO_CLOZES_DESC:
         'Aggiungi/rimuovi <code>${defaultPattern}</code> dai tuoi "Modelli per spazi da riempire"',

@@ -1,6 +1,10 @@
 import { ClozeCrafter } from "clozecraft";
-
 import { CardType } from "src/question";
+import { TopicPathList } from "src/topic-path";
+import { Card } from "src/card";
+import { frontmatterTagPseudoLineNum } from "src/file";
+import { RepetitionPhase } from "src/algorithms/base/repetition-item";
+import { RepItemScheduleInfoOsr } from "src/algorithms/osr/rep-item-schedule-info-osr";
 
 export let debugParser = false;
 
@@ -11,6 +15,7 @@ export interface ParserOptions {
     multilineReversedCardSeparator: string;
     multilineCardEndMarker: string;
     clozePatterns: string[];
+    headingAsBasic: boolean;
 }
 
 export function setDebugParser(value: boolean) {
@@ -24,6 +29,10 @@ export class ParsedQuestionInfo {
     // Line numbers start at 0
     firstLineNum: number;
     lastLineNum: number;
+
+    questionType: CardType | null = null;
+    topicPathList: TopicPathList | null = null;
+    cards: Card[] = [];
 
     constructor(cardType: CardType, text: string, firstLineNum: number, lastLineNum: number) {
         this.cardType = cardType;
@@ -190,6 +199,126 @@ export function parse(text: string, options: ParserOptions): ParsedQuestionInfo[
         } else if (cardType === null && clozecrafter.isClozeNote(currentLine)) {
             // Pick up cloze cards
             cardType = CardType.Cloze;
+        } else if (options.headingAsBasic && 
+            (currentLine.trim().startsWith('#') || /^\d+$/.test(currentLine.trim())) && 
+            !currentLine.trim().includes('-') && // Виключаємо теги типу #flashcards-tts-de
+            !currentLine.trim().match(/^#[a-zA-Z0-9_-]+$/)) { // Виключаємо прості теги типу #tag
+            
+            // Pick up heading as basic card if enabled
+            cardType = CardType.HeaderBasic;
+            firstLineNo = i;
+
+            // Get content under the heading until next heading
+            let nextLine = i + 1;
+            let content = "";
+            let foundFirstSeparator = false;
+            let foundSecondSeparator = false;
+            let separatorLine = "";
+            let contentLines = [];
+            let hasScheduleInfo = false;
+
+            while (nextLine < lines.length) {
+                const line = lines[nextLine];
+                const trimmedLine = line.trim();
+                
+                // Break if we find next heading or question mark (for other card types)
+                if (trimmedLine.startsWith('#') || trimmedLine === '?') break;
+                
+                // Handle -- -- separators
+                if (trimmedLine === "-- --") {
+                    if (!foundFirstSeparator) {
+                        foundFirstSeparator = true;
+                        separatorLine = line;
+                        contentLines = []; // Reset content lines after first separator
+                    } else {
+                        foundSecondSeparator = true;
+                        // Include SR scheduling info if present
+                        let nextLineIdx = nextLine + 1;
+                        while (nextLineIdx < lines.length) {
+                            const nextLineContent = lines[nextLineIdx].trim();
+                            if (nextLineContent.startsWith('<!--SR:')) {
+                                hasScheduleInfo = true;
+                                contentLines.push(lines[nextLineIdx]);
+                                nextLineIdx++;
+                            } else if (nextLineContent === '') {
+                                nextLineIdx++;
+                            } else {
+                                break;
+                            }
+                        }
+                        nextLine = nextLineIdx - 1;
+                        break;
+                    }
+                    nextLine++;
+                    continue;
+                }
+                
+                // Collect content between separators
+                if (foundFirstSeparator && !foundSecondSeparator) {
+                    contentLines.push(line);
+                }
+                
+                nextLine++;
+            }
+
+            // Якщо знайдено обидва роздільники
+            if (foundFirstSeparator && foundSecondSeparator) {
+                // Extract heading text without # if it exists
+                const headingText = currentLine.trim().startsWith('#') 
+                    ? currentLine.replace(/^#+\s+/, "").trim()
+                    : currentLine.trim();
+                
+                // Clean up content - remove leading/trailing empty lines but preserve internal formatting
+                while (contentLines.length > 0 && contentLines[0].trim() === '') contentLines.shift();
+                while (contentLines.length > 0 && contentLines[contentLines.length - 1].trim() === '') contentLines.pop();
+                
+                // Format content based on whether it has empty lines
+                let formattedContent;
+                if (contentLines.some(line => line.trim() === '')) {
+                    // If there are empty lines in content, preserve them and add extra empty lines
+                    contentLines.unshift('');
+                    contentLines.push('');
+                    formattedContent = contentLines.join('\n');
+                } else {
+                    // If no empty lines, just join content lines
+                    formattedContent = contentLines.join('\n');
+                }
+                
+                // Форматуємо текст картки
+                cardText = `${currentLine}\n${separatorLine}\n${formattedContent}\n${separatorLine}`;
+                if (hasScheduleInfo) {
+                    cardText += '\n' + contentLines[contentLines.length - 1];
+                }
+                lastLineNo = nextLine;
+                
+                // Create a new ParsedQuestionInfo with the card data
+                const parsedInfo = new ParsedQuestionInfo(cardType, cardText, firstLineNo, lastLineNo);
+                parsedInfo.questionType = CardType.HeaderBasic;
+                
+                // Create a Card object for this header-based flashcard
+                const card = new Card({
+                    cardIdx: 0,
+                    front: headingText,
+                    back: formattedContent,
+                    repetitionPhase: RepetitionPhase.New
+                });
+                
+                // Check if there's schedule info in the content
+                const scheduleMatch = formattedContent.match(/<!--SR:(.+?)-->/);
+                if (scheduleMatch) {
+                    const scheduleInfo = scheduleMatch[1];
+                    const [dateStr, interval, ease] = scheduleInfo.substring(1).split(',');
+                    card.scheduleInfo = RepItemScheduleInfoOsr.fromDueDateStr(dateStr, parseFloat(interval), parseFloat(ease));
+                }
+                
+                parsedInfo.cards = [card];
+                cards.push(parsedInfo);
+                
+                // Reset for next card
+                cardType = null;
+                cardText = "";
+                i = nextLine - 1;
+            }
         }
     }
 

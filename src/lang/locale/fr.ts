@@ -122,6 +122,8 @@ export default {
     CONVERT_HIGHLIGHTS_TO_CLOZES: "Convertir ==soulignages== en trous ?",
     CONVERT_HIGHLIGHTS_TO_CLOZES_DESC:
         'Ajouter/supprimer le <code>${defaultPattern}</code> de vos "Cloze Patterns"',
+    CONVERT_HEADINGS_TO_BASIC: "Convertir les titres en cartes basiques",
+    CONVERT_HEADINGS_TO_BASIC_DESC: "Convertir les titres en cartes basiques avec le contenu en dessous comme réponse",
     CONVERT_BOLD_TEXT_TO_CLOZES: "Convertir **gras** en trous ?",
     CONVERT_BOLD_TEXT_TO_CLOZES_DESC:
         'Ajouter/supprimer le <code>${defaultPattern}</code> de vos "Cloze Patterns"',

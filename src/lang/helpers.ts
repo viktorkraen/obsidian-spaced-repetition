@@ -5,7 +5,7 @@ import { moment } from "obsidian";
 import af from "src/lang/locale/af";
 import ar from "src/lang/locale/ar";
 import bn from "src/lang/locale/bn";
-import cz from "src/lang/locale/cz";
+import cs from "./locale/cs";
 import da from "src/lang/locale/da";
 import de from "src/lang/locale/de";
 import en from "src/lang/locale/en";
@@ -40,7 +40,7 @@ export const localeMap: { [k: string]: Partial<typeof en> } = {
     af,
     ar,
     bn,
-    cs: cz,
+    cs,
     da,
     de,
     en,
@@ -72,7 +72,7 @@ export const localeMap: { [k: string]: Partial<typeof en> } = {
     "zh-tw": zhTW,
 };
 
-const locale = localeMap[moment.locale()];
+const locale = localeMap[moment.locale() || 'en'];
 
 // https://stackoverflow.com/a/41015840/
 function interpolate(str: string, params: Record<string, unknown>): string {

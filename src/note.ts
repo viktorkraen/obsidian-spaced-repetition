@@ -15,6 +15,10 @@ export class Note {
         return this.file.path;
     }
 
+    get tags(): string[] {
+        return this.file.getAllTagsFromCache();
+    }
+
     constructor(file: ISRFile, questionList: Question[]) {
         this.file = file;
         this.questionList = questionList;

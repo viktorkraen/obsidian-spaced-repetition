@@ -110,6 +110,36 @@ class QuestionTypeCloze implements IQuestionTypeHandler {
     }
 }
 
+class QuestionTypeHeaderBasic implements IQuestionTypeHandler {
+    expand(questionText: string, settings: SRSettings): CardFrontBack[] {
+        const lines = questionText.split("\n");
+        const headerLine = lines[0];
+        const headerText = headerLine.replace(/^#+\s+/, ""); // Remove heading markers
+        
+        // Find the content between -- -- markers
+        const contentLines = lines.slice(1);
+        let content = "";
+        let isCollectingContent = false;
+        
+        for (const line of contentLines) {
+            if (line.trim() === "-- --") {
+                if (!isCollectingContent) {
+                    isCollectingContent = true;
+                } else {
+                    break;
+                }
+                continue;
+            }
+            
+            if (isCollectingContent) {
+                content += line + "\n";
+            }
+        }
+        
+        return [new CardFrontBack(headerText, content.trim())];
+    }
+}
+
 export class QuestionTypeClozeFormatter implements IClozeFormatter {
     asking(answer?: string, hint?: string): string {
         return `<span style='color:#2196f3'>${!hint ? "[...]" : `[${hint}]`}</span>`;
@@ -142,6 +172,9 @@ export class QuestionTypeFactory {
                 break;
             case CardType.Cloze:
                 handler = new QuestionTypeCloze();
+                break;
+            case CardType.HeaderBasic:
+                handler = new QuestionTypeHeaderBasic();
                 break;
         }
         return handler;

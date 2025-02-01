@@ -231,4 +231,6 @@ export default {
     SEARCH: "Search",
     PREVIOUS: "Previous",
     NEXT: "Next",
-};
+    CONVERT_HEADINGS_TO_BASIC: "Převést nadpisy na základní karty",
+    CONVERT_HEADINGS_TO_BASIC_DESC: "Převést nadpisy na základní karty s obsahem níže jako odpovědí"
+} 

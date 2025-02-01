@@ -115,15 +115,12 @@ export default {
         "Randomly (once all cards in previous deck reviewed)",
     REVIEW_DECK_ORDER_RANDOM_DECK_AND_CARD: "Random card from random deck",
     DISABLE_CLOZE_CARDS: "؟cloze تعطيل بطاقات",
-    CONVERT_HIGHLIGHTS_TO_CLOZES: "Convert ==highlights== to clozes",
-    CONVERT_HIGHLIGHTS_TO_CLOZES_DESC:
-        'Add/remove the <code>${defaultPattern}</code> from your "Cloze Patterns"',
-    CONVERT_BOLD_TEXT_TO_CLOZES: "Convert **bolded text** to clozes",
-    CONVERT_BOLD_TEXT_TO_CLOZES_DESC:
-        'Add/remove the <code>${defaultPattern}</code> from your "Cloze Patterns"',
-    CONVERT_CURLY_BRACKETS_TO_CLOZES: "Convert {{curly brackets}} to clozes",
-    CONVERT_CURLY_BRACKETS_TO_CLOZES_DESC:
-        'Add/remove the <code>${defaultPattern}</code> from your "Cloze Patterns"',
+    CONVERT_BOLD_TEXT_TO_CLOZES: "تحويل النص العريض إلى بطاقات كلوز",
+    CONVERT_BOLD_TEXT_TO_CLOZES_DESC: "تحويل النص العريض إلى بطاقات كلوز مع النص المحيط كسياق",
+    CONVERT_CURLY_BRACKETS_TO_CLOZES: "تحويل {{الأقواس المنحنية}} إلى بطاقات فجوة",
+    CONVERT_CURLY_BRACKETS_TO_CLOZES_DESC: "إضافة/إزالة النمط <code>${defaultPattern}</code> من 'أنماط الفجوة'",
+    CONVERT_HEADINGS_TO_BASIC: "تحويل العناوين إلى بطاقات أساسية",
+    CONVERT_HEADINGS_TO_BASIC_DESC: "تحويل العناوين إلى بطاقات أساسية مع المحتوى أدناه كإجابة",
     CLOZE_PATTERNS: "Cloze Patterns",
     CLOZE_PATTERNS_DESC:
         'Enter cloze patterns separated by newlines. Check the <a href="${docsUrl}">wiki</a> for guidance.',
@@ -226,4 +223,6 @@ export default {
     SEARCH: "Search",
     PREVIOUS: "Previous",
     NEXT: "Next",
+    CONVERT_HIGHLIGHTS_TO_CLOZES: "تحويل النص المظلل إلى بطاقات كلوز",
+    CONVERT_HIGHLIGHTS_TO_CLOZES_DESC: "تحويل النص المظلل إلى بطاقات كلوز مع النص المحيط كسياق",
 };

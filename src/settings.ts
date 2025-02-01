@@ -16,6 +16,7 @@ export interface SRSettings {
     convertHighlightsToClozes: boolean;
     convertBoldTextToClozes: boolean;
     convertCurlyBracketsToClozes: boolean;
+    convertHeadingsToBasic: boolean;
     clozePatterns: string[];
     singleLineCardSeparator: string;
     singleLineReversedCardSeparator: string;
@@ -23,6 +24,7 @@ export interface SRSettings {
     multilineReversedCardSeparator: string;
     multilineCardEndMarker: string;
     editLaterTag: string;
+    headerCardEndMarker: string;
 
     // notes
     enableNoteReviewPaneOnStartup: boolean;
@@ -76,6 +78,7 @@ export const DEFAULT_SETTINGS: SRSettings = {
     convertHighlightsToClozes: true,
     convertBoldTextToClozes: false,
     convertCurlyBracketsToClozes: false,
+    convertHeadingsToBasic: false,
     clozePatterns: ["==[123;;]answer[;;hint]=="],
     singleLineCardSeparator: "::",
     singleLineReversedCardSeparator: ":::",
@@ -83,6 +86,7 @@ export const DEFAULT_SETTINGS: SRSettings = {
     multilineReversedCardSeparator: "??",
     multilineCardEndMarker: "",
     editLaterTag: "#edit-later",
+    headerCardEndMarker: "-- --",
 
     // notes
     enableNoteReviewPaneOnStartup: true,

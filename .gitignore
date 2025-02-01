@@ -35,3 +35,7 @@ docs/vaults/*/.obsidian
 
 # env
 env.sh
+
+# obsidian
+main.js
+data.json

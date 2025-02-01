@@ -26,21 +26,23 @@ export default class TabViewManager {
     private chosenReviewModeForTabbedView: FlashcardReviewMode;
     private chosenSingleNoteForTabbedView: TFile;
 
-    // Add any new other tab view types to this, then they'll be automatically registered
+    // Додаємо нові типи вкладок сюди, і вони автоматично реєструються
     private tabViewTypes: TabViewType[] = [
         {
             type: SR_TAB_VIEW,
             viewCreator: (leaf) =>
                 new SRTabView(leaf, this.plugin, async () => {
-                    // Tabbed views cant get params on open call, so we have to do it here
-                    // This allows us to load the data from inside the view when the open function is called
+                    // Вкладки не можуть отримати параметри при відкритті, тому робимо це тут
+                    // Це дозволяє завантажити дані зсередини виду, коли викликається функція відкриття
                     if (this.shouldOpenSingeNoteTabView) {
+                        // Отримуємо дані для огляду однієї нотатки
                         const singleNoteDeckData =
                             await this.plugin.getPreparedDecksForSingleNoteReview(
                                 this.chosenSingleNoteForTabbedView,
                                 this.chosenReviewModeForTabbedView,
                             );
 
+                        // Повертаємо підготовлений послідовник огляду
                         return this.plugin.getPreparedReviewSequencer(
                             singleNoteDeckData.deckTree,
                             singleNoteDeckData.remainingDeckTree,
@@ -48,12 +50,15 @@ export default class TabViewManager {
                         );
                     }
 
+                    // Отримуємо повне дерево колод для огляду
                     const fullDeckTree: Deck = this.osrAppCore.reviewableDeckTree;
+                    // Визначаємо залишкове дерево колод в залежності від режиму огляду
                     const remainingDeckTree: Deck =
                         this.chosenReviewModeForTabbedView === FlashcardReviewMode.Cram
                             ? this.osrAppCore.reviewableDeckTree
                             : this.osrAppCore.remainingDeckTree;
 
+                    // Повертаємо підготовлений послідовник огляду
                     return this.plugin.getPreparedReviewSequencer(
                         fullDeckTree,
                         remainingDeckTree,
@@ -98,21 +103,35 @@ export default class TabViewManager {
     }
 
     /**
-     * Closes all open tab views in the application.
+     * Закриває всі відкриті вкладки в додатку.
      *
-     * This method iterates over all registered tab view types and detaches
-     * their corresponding leaves from the workspace, effectively closing them.
+     * Цей метод перебирає всі зареєстровані типи вкладок і від'єднує
+     * їх відповідні листи від робочого простору, ефективно закриваючи їх.
      */
     public closeAllTabViews() {
         this.forEachTabViewType((viewType) => {
+            // Закриває всі вклади по типу viewType.type та звертається
+            // в списку до кожного viewType який в ньому є і до його атрибуту
+            // type і викликає метод detachLeavesOfType
             this.plugin.app.workspace.detachLeavesOfType(viewType.type);
         });
     }
 
+    /**
+     * Викликає колбек для кожного типу вкладки в списку.
+     *
+     * @param callback - Функція, яка буде викликана для кожного типу вкладки.
+     */
     public forEachTabViewType(callback: (type: TabViewType) => void) {
         this.tabViewTypes.forEach((type) => callback(type));
     }
 
+    /**
+     * Зареєструвати всі види вкладок.
+     *
+     * Цей метод перебирає всі зареєстровані типи вкладок і викликає
+     * метод registerView для кожного з них, щоб зареєструвати їх у додатку.
+     */
     public registerAllTabViews() {
         this.forEachTabViewType((viewType) =>
             this.plugin.registerView(viewType.type, viewType.viewCreator),

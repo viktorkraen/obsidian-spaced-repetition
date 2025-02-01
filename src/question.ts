@@ -10,6 +10,8 @@ import { ParsedQuestionInfo } from "src/parser";
 import { SRSettings } from "src/settings";
 import { TopicPath, TopicPathList, TopicPathWithWs } from "src/topic-path";
 import { cyrb53, MultiLineTextFinder, stringTrimStart, TextDirection } from "src/utils/strings";
+import { DataStoreInNoteAlgorithmOsr } from "src/data-store-algorithm/data-store-in-note-algorithm-osr";
+import { RepItemScheduleInfoOsr } from "src/algorithms/osr/rep-item-schedule-info-osr";
 
 export enum CardType {
     SingleLineBasic,
@@ -17,6 +19,7 @@ export enum CardType {
     MultiLineBasic,
     MultiLineReversed,
     Cloze,
+    HeaderBasic
 }
 
 // QuestionText comprises the following components:
@@ -222,24 +225,62 @@ export class Question {
     }
 
     formatForNote(settings: SRSettings): string {
-        let result: string = this.questionText.formatTopicAndQuestion();
+        // Для кожної картки, якщо немає schedule, встановлюємо dummy schedule info
+        if (this.cards && this.cards.length > 0) {
+            this.cards.forEach((card) => {
+                if (!card.scheduleInfo) {
+                    card.scheduleInfo = RepItemScheduleInfoOsr.getDummyScheduleForNewCard(settings);
+                }
+            });
+        } else if (this.questionType === CardType.HeaderBasic) {
+            // Для HeaderBasic, якщо картки ще не створені, створюємо їх
+            const card = new Card({
+                question: this,
+                cardIdx: 0,
+                front: this.questionText.actualQuestion,
+                back: ""
+            });
+            card.scheduleInfo = RepItemScheduleInfoOsr.getDummyScheduleForNewCard(settings);
+            this.setCardList([card]);
+        }
+
+        const resultBase: string = this.questionText.formatTopicAndQuestion();
         const blockId: string = this.questionText.obsidianBlockId;
-        const hasSchedule: boolean = this.cards.some((card) => card.hasSchedule);
-        if (hasSchedule) {
-            result = result.trimEnd();
-            const scheduleHtml =
-                DataStoreAlgorithm.getInstance().questionFormatScheduleAsHtmlComment(this);
-            if (blockId) {
-                if (this.isCardCommentsOnSameLine(settings))
-                    result += ` ${scheduleHtml} ${blockId}`;
-                else result += ` ${blockId}\n${scheduleHtml}`;
+        // Завжди генеруємо scheduleHtml
+        const scheduleHtml = DataStoreAlgorithm.getInstance().questionFormatScheduleAsHtmlComment(this);
+        
+        let result: string;
+        if (this.questionType === CardType.HeaderBasic) {
+            const lines = resultBase.split("\n");
+            const headerLine = lines[0];
+            const contentLines = lines.slice(1);
+            
+            // Знаходимо останній '-- --' роздільник
+            let lastSeparatorIndex = -1;
+            for (let i = contentLines.length - 1; i >= 0; i--) {
+                if (contentLines[i].trim() === "-- --") {
+                    lastSeparatorIndex = i;
+                    break;
+                }
+            }
+            
+            if (lastSeparatorIndex !== -1) {
+                // Видаляємо будь-які існуючі SR коментарі після роздільника
+                contentLines.splice(lastSeparatorIndex + 1, contentLines.length - lastSeparatorIndex - 1);
+                // Додаємо scheduleHtml після останнього роздільника
+                contentLines.splice(lastSeparatorIndex + 1, 0, scheduleHtml);
+                result = [headerLine, ...contentLines].join("\n");
             } else {
-                result += this.getHtmlCommentSeparator(settings) + scheduleHtml;
+                result = resultBase + this.getHtmlCommentSeparator(settings) + scheduleHtml;
             }
         } else {
-            // No schedule, so the block ID always comes after the question text, without anything after it
-            if (blockId) result += ` ${blockId}`;
+            result = resultBase + this.getHtmlCommentSeparator(settings) + scheduleHtml;
         }
+
+        if (blockId) {
+            result += " " + blockId;
+        }
+
         return result;
     }
 
@@ -291,6 +332,13 @@ export class Question {
         textDirection: TextDirection,
         context: string[],
     ): Question {
+
+        const isHeaderCard = /^#{1,6}\s/.test(parsedQuestionInfo.text);
+    
+        if (isHeaderCard) {
+            parsedQuestionInfo.cardType = CardType.HeaderBasic;
+        }
+
         const hasEditLaterTag = parsedQuestionInfo.text.includes(settings.editLaterTag);
         const questionText: QuestionText = QuestionText.create(
             parsedQuestionInfo.text,

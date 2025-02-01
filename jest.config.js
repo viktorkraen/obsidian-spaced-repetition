@@ -1,13 +1,24 @@
 /** @type {import('@ts-jest/dist/types').InitialOptionsTsJest} */
 module.exports = {
     verbose: true,
-    preset: "ts-jest",
-    testEnvironment: "jsdom",
-    setupFilesAfterEnv: ["jest-expect-message"],
+    preset: 'ts-jest',
+    testEnvironment: 'jsdom',
+    moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
     moduleNameMapper: {
-        "src/(.*)": "<rootDir>/src/$1",
+        '^src/(.*)$': '<rootDir>/src/$1'
     },
-    moduleFileExtensions: ["js", "jsx", "ts", "tsx", "json", "node", "d.ts"],
+    setupFilesAfterEnv: ['jest-expect-message'],
+    testMatch: ['**/__tests__/**/*.test.ts'],
+    transform: {
+        '^.+\\.tsx?$': ['ts-jest', {
+            tsconfig: 'tsconfig.json'
+        }]
+    },
+    globals: {
+        'ts-jest': {
+            diagnostics: false
+        }
+    },
     roots: ["<rootDir>/src/", "<rootDir>/tests/unit/"],
     collectCoverageFrom: ["src/**"],
     coveragePathIgnorePatterns: [

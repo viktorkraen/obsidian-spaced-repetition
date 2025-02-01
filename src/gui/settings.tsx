@@ -225,6 +225,22 @@ export class SRSettingTab extends PluginSettingTab {
                 }),
         );
 
+        const convertHeadingsToBasicEl = new Setting(containerEl).setName(
+            t("CONVERT_HEADINGS_TO_BASIC"),
+        );
+        convertHeadingsToBasicEl.descEl.insertAdjacentHTML(
+            "beforeend",
+            t("CONVERT_HEADINGS_TO_BASIC_DESC"),
+        );
+        convertHeadingsToBasicEl.addToggle((toggle) =>
+            toggle
+                .setValue(this.plugin.data.settings.convertHeadingsToBasic)
+                .onChange(async (value) => {
+                    this.plugin.data.settings.convertHeadingsToBasic = value;
+                    await this.plugin.savePluginData();
+                }),
+        );
+
         const convertBoldTextToClozesEl = new Setting(containerEl).setName(
             t("CONVERT_BOLD_TEXT_TO_CLOZES"),
         );

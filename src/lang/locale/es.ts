@@ -121,6 +121,8 @@ export default {
     CONVERT_HIGHLIGHTS_TO_CLOZES: "¿Convertir ==resaltados== a deletreo de huecos?",
     CONVERT_HIGHLIGHTS_TO_CLOZES_DESC:
         'Añadir/eliminar el <code>${defaultPattern}</code> de tus "Patrones de Deletreo de Huecos"',
+    CONVERT_HEADINGS_TO_BASIC: "Convertir encabezados a tarjetas básicas",
+    CONVERT_HEADINGS_TO_BASIC_DESC: "Convertir encabezados a tarjetas básicas con el contenido debajo como respuesta",
     CONVERT_BOLD_TEXT_TO_CLOZES: "¿Convertir **texto en negrita** a deletreo de huecos?",
     CONVERT_BOLD_TEXT_TO_CLOZES_DESC:
         'Añadir/eliminar el <code>${defaultPattern}</code> de tus "Patrones de Deletreo de Huecos"',

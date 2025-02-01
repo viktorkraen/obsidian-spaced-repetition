@@ -59,16 +59,32 @@ export default class SRPlugin extends Plugin {
         leaf?: WorkspaceLeaf,
     ) => void;
 
+    // Завантажує сам плагін і відповідні йому налаштування
     async onload(): Promise<void> {
-        // Closes all still open tab views when the plugin is loaded, because it causes bugs / empty windows otherwise
+        await this.loadPluginData();
         this.tabViewManager = new TabViewManager(this);
+
+        // Закриває всі відкриті вкладки при завантаженні плагіна, 
+        // щоб уникнути багів та порожніх вікон
+
+        // Obsidian завантажує плагін і також незакриті вкладки, які були
+        // відкриті до завантаження плагіна. Це може призвести до багів
+
+        // Закриває всі відкриті вкладки при завантаженні плагіна
+        // app - головний об'єкт Obsidian API, який надає:
+        // workspace - об'єкт, який надає доступ до всіх відкритих вкладок
+        // onLayoutReady - метод, який викликається, коли Obsidian завершує завантаження
         this.app.workspace.onLayoutReady(async () => {
             this.tabViewManager.closeAllTabViews();
         });
 
-        await this.loadPluginData();
-
+        // Створюємо об'єкт, який буде зберігати чергу нотаток для повторення у 
+        // контексті Spaced Repetition
+        // він також обчислює кількість переглянутих/непереглянутих нотаток
+        // в кожній колоді
         const noteReviewQueue = new NoteReviewQueue();
+
+        // Це об'єкт, який буде керувати чергою карток для повторення
         this.nextNoteReviewHandler = new NextNoteReviewHandler(
             this.app,
             this.data.settings,
@@ -394,20 +410,30 @@ export default class SRPlugin extends Plugin {
         remainingDeckTree: Deck,
         reviewMode: FlashcardReviewMode,
     ): void {
-        const reviewSequencerData = this.getPreparedReviewSequencer(
-            fullDeckTree,
-            remainingDeckTree,
-            reviewMode,
-        );
+        // Set focus before opening modal
+        this.setSRInFocus(true);
+        
+        if (this.isSRInFocus) {
+            const reviewSequencer: IFlashcardReviewSequencer = new FlashcardReviewSequencer(
+                reviewMode,
+                SRPlugin.createDeckTreeIterator(this.data.settings),
+                this.data.settings,
+                SrsAlgorithm.getInstance(),
+                this.osrAppCore.questionPostponementList,
+                this.osrAppCore.dueDateFlashcardHistogram
+            );
 
-        this.setSRViewInFocus(true);
-        new FlashcardModal(
-            this.app,
-            this,
-            this.data.settings,
-            reviewSequencerData.reviewSequencer,
-            reviewSequencerData.mode,
-        ).open();
+            reviewSequencer.setDeckTree(fullDeckTree, remainingDeckTree);
+
+            const modal = new FlashcardModal(
+                this.app,
+                this,
+                this.data.settings,
+                reviewSequencer,
+                reviewMode,
+            );
+            modal.open();
+        }
     }
 
     private static createDeckTreeIterator(settings: SRSettings): IDeckTreeIterator {
@@ -573,5 +599,9 @@ export default class SRPlugin extends Plugin {
         } else {
             this.statusBar.style.display = "none";
         }
+    }
+
+    private setSRInFocus(value: boolean) {
+        this.isSRInFocus = value;
     }
 }

@@ -65,7 +65,7 @@ export class CardUI {
         contentEl: HTMLElement,
         parentEl: HTMLElement,
         backClickHandler: () => void,
-        editClickHandler: () => void,
+        editClickHandler: () => void
     ) {
         // Init properties
         this.app = app;
@@ -121,6 +121,7 @@ export class CardUI {
         this.response.addClass("sr-response");
 
         this._createResponseButtons();
+        this._addTTSStyles();
     }
 
     /**
@@ -171,6 +172,17 @@ export class CardUI {
 
     // #region -> Functions & helpers
 
+    private async _playAudioInContent(content: HTMLElement) {
+        const audioElements = content.querySelectorAll('audio');
+        for (const audio of audioElements) {
+            try {
+                await audio.play();
+            } catch (error) {
+                console.error('Error playing audio:', error);
+            }
+        }
+    }
+
     private async _drawContent() {
         this.mode = FlashcardMode.Front;
         const currentDeck: Deck = this.reviewSequencer.currentDeck;
@@ -199,6 +211,10 @@ export class CardUI {
             this.content,
             this._currentQuestion.questionText.textDirection,
         );
+        
+        // Автоматично програємо аудіо на передній стороні картки
+        await this._playAudioInContent(this.content);
+        
         // Set scroll position back to top
         this.content.scrollTop = 0;
 
@@ -305,7 +321,7 @@ export class CardUI {
         return this.reviewSequencer.currentNote;
     }
 
-    private _showAnswer(): void {
+    private async _showAnswer() {
         const timeNow = now();
         if (
             this.lastPressed &&
@@ -316,55 +332,68 @@ export class CardUI {
         this.lastPressed = timeNow;
 
         this.mode = FlashcardMode.Back;
-
         this.resetButton.disabled = false;
 
-        // Show answer text
-        if (this._currentQuestion.questionType !== CardType.Cloze) {
-            const hr: HTMLElement = document.createElement("hr");
-            hr.addClass("sr-card-divide");
-            this.content.appendChild(hr);
-        } else {
-            this.content.empty();
-        }
+        try {
+            // Show answer text
+            if (this._currentQuestion.questionType !== CardType.Cloze) {
+                const hr: HTMLElement = document.createElement("hr");
+                hr.addClass("sr-card-divide");
+                this.content.appendChild(hr);
+            } else {
+                this.content.empty();
+            }
 
-        const wrapper: RenderMarkdownWrapper = new RenderMarkdownWrapper(
-            this.app,
-            this.plugin,
-            this._currentNote.filePath,
-        );
-        wrapper.renderMarkdownWrapper(
-            this._currentCard.back,
-            this.content,
-            this._currentQuestion.questionText.textDirection,
-        );
+            const wrapper: RenderMarkdownWrapper = new RenderMarkdownWrapper(
+                this.app,
+                this.plugin,
+                this._currentNote.filePath,
+            );
+            await wrapper.renderMarkdownWrapper(
+                this._currentCard.back.trimStart(),
+                this.content,
+                this._currentQuestion.questionText.textDirection,
+            );
 
-        // Show response buttons
-        this.answerButton.addClass("sr-is-hidden");
-        this.hardButton.removeClass("sr-is-hidden");
-        this.easyButton.removeClass("sr-is-hidden");
+            // Автоматично програємо аудіо на зворотній стороні картки
+            await this._playAudioInContent(this.content);
 
-        if (this.reviewMode === FlashcardReviewMode.Cram) {
-            this.response.addClass("is-cram");
-            this.hardButton.setText(`${this.settings.flashcardHardText}`);
-            this.easyButton.setText(`${this.settings.flashcardEasyText}`);
-        } else {
-            this.goodButton.removeClass("sr-is-hidden");
-            this._setupEaseButton(
-                this.hardButton,
-                this.settings.flashcardHardText,
-                ReviewResponse.Hard,
-            );
-            this._setupEaseButton(
-                this.goodButton,
-                this.settings.flashcardGoodText,
-                ReviewResponse.Good,
-            );
-            this._setupEaseButton(
-                this.easyButton,
-                this.settings.flashcardEasyText,
-                ReviewResponse.Easy,
-            );
+            // Show response buttons
+            this.answerButton.addClass("sr-is-hidden");
+            this.hardButton.removeClass("sr-is-hidden");
+            this.easyButton.removeClass("sr-is-hidden");
+
+            if (this.reviewMode === FlashcardReviewMode.Cram) {
+                this.response.addClass("is-cram");
+                this.hardButton.setText(`${this.settings.flashcardHardText}`);
+                this.easyButton.setText(`${this.settings.flashcardEasyText}`);
+            } else {
+                this.goodButton.removeClass("sr-is-hidden");
+                this._setupEaseButton(
+                    this.hardButton,
+                    this.settings.flashcardHardText,
+                    ReviewResponse.Hard,
+                );
+                this._setupEaseButton(
+                    this.goodButton,
+                    this.settings.flashcardGoodText,
+                    ReviewResponse.Good,
+                );
+                this._setupEaseButton(
+                    this.easyButton,
+                    this.settings.flashcardEasyText,
+                    ReviewResponse.Easy,
+                );
+            }
+        } catch (error) {
+            console.error('CardUI: Error showing answer:', error);
+            // Make sure buttons are shown even if there's an error
+            this.answerButton.addClass("sr-is-hidden");
+            this.hardButton.removeClass("sr-is-hidden");
+            this.easyButton.removeClass("sr-is-hidden");
+            if (this.reviewMode !== FlashcardReviewMode.Cram) {
+                this.goodButton.removeClass("sr-is-hidden");
+            }
         }
     }
 
@@ -596,5 +625,25 @@ export class CardUI {
         } else {
             button.setText(buttonName);
         }
+    }
+
+    // Add CSS styles
+    private _addTTSStyles() {
+        const style = document.createElement('style');
+        style.textContent = `
+            .sr-tts-button {
+                background: var(--interactive-accent);
+                color: var(--text-on-accent);
+                padding: 4px 8px;
+                border-radius: 4px;
+                border: none;
+                cursor: pointer;
+                margin-left: 8px;
+            }
+            .sr-tts-button:hover {
+                background: var(--interactive-accent-hover);
+            }
+        `;
+        document.head.appendChild(style);
     }
 }
