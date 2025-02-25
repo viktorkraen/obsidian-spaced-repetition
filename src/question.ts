@@ -225,15 +225,24 @@ export class Question {
     }
 
     formatForNote(settings: SRSettings): string {
+        // Перевіряємо, чи має хоча б одна картка розклад (не dummy)
+        const hasRealSchedule = this.cards && this.cards.length > 0 && 
+            this.cards.some(card => card.hasSchedule && 
+                card.scheduleInfo && 
+                (card.scheduleInfo as RepItemScheduleInfoOsr).dueDate && 
+                (card.scheduleInfo as RepItemScheduleInfoOsr).formatDueDate() !== RepItemScheduleInfoOsr.dummyDueDateForNewCard);
+
         // Для кожної картки, якщо немає schedule, встановлюємо dummy schedule info
-        if (this.cards && this.cards.length > 0) {
+        // але тільки якщо хоча б одна картка вже має реальний розклад
+        if (hasRealSchedule && this.cards && this.cards.length > 0) {
             this.cards.forEach((card) => {
                 if (!card.scheduleInfo) {
                     card.scheduleInfo = RepItemScheduleInfoOsr.getDummyScheduleForNewCard(settings);
                 }
             });
-        } else if (this.questionType === CardType.HeaderBasic) {
+        } else if (this.questionType === CardType.HeaderBasic && hasRealSchedule) {
             // Для HeaderBasic, якщо картки ще не створені, створюємо їх
+            // але тільки якщо хоча б одна картка вже має реальний розклад
             const card = new Card({
                 question: this,
                 cardIdx: 0,
@@ -246,8 +255,12 @@ export class Question {
 
         const resultBase: string = this.questionText.formatTopicAndQuestion();
         const blockId: string = this.questionText.obsidianBlockId;
-        // Завжди генеруємо scheduleHtml
-        const scheduleHtml = DataStoreAlgorithm.getInstance().questionFormatScheduleAsHtmlComment(this);
+        
+        // Генеруємо scheduleHtml тільки якщо хоча б одна картка має реальний розклад
+        let scheduleHtml = "";
+        if (hasRealSchedule) {
+            scheduleHtml = DataStoreAlgorithm.getInstance().questionFormatScheduleAsHtmlComment(this);
+        }
         
         let result: string;
         if (this.questionType === CardType.HeaderBasic) {
@@ -264,17 +277,25 @@ export class Question {
                 }
             }
             
-            if (lastSeparatorIndex !== -1) {
+            if (lastSeparatorIndex !== -1 && hasRealSchedule) {
                 // Видаляємо будь-які існуючі SR коментарі після роздільника
                 contentLines.splice(lastSeparatorIndex + 1, contentLines.length - lastSeparatorIndex - 1);
                 // Додаємо scheduleHtml після останнього роздільника
                 contentLines.splice(lastSeparatorIndex + 1, 0, scheduleHtml);
                 result = [headerLine, ...contentLines].join("\n");
             } else {
-                result = resultBase + this.getHtmlCommentSeparator(settings) + scheduleHtml;
+                result = resultBase;
+                // Додаємо scheduleHtml тільки якщо хоча б одна картка має реальний розклад
+                if (hasRealSchedule) {
+                    result += this.getHtmlCommentSeparator(settings) + scheduleHtml;
+                }
             }
         } else {
-            result = resultBase + this.getHtmlCommentSeparator(settings) + scheduleHtml;
+            result = resultBase;
+            // Додаємо scheduleHtml тільки якщо хоча б одна картка має реальний розклад
+            if (hasRealSchedule) {
+                result += this.getHtmlCommentSeparator(settings) + scheduleHtml;
+            }
         }
 
         if (blockId) {

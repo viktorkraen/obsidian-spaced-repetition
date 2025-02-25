@@ -11654,13 +11654,14 @@ var Question = class _Question {
     this.cards.forEach((card) => card.question = this);
   }
   formatForNote(settings) {
-    if (this.cards && this.cards.length > 0) {
+    const hasRealSchedule = this.cards && this.cards.length > 0 && this.cards.some((card) => card.hasSchedule && card.scheduleInfo && card.scheduleInfo.dueDate && card.scheduleInfo.formatDueDate() !== RepItemScheduleInfoOsr.dummyDueDateForNewCard);
+    if (hasRealSchedule && this.cards && this.cards.length > 0) {
       this.cards.forEach((card) => {
         if (!card.scheduleInfo) {
           card.scheduleInfo = RepItemScheduleInfoOsr.getDummyScheduleForNewCard(settings);
         }
       });
-    } else if (this.questionType === 5 /* HeaderBasic */) {
+    } else if (this.questionType === 5 /* HeaderBasic */ && hasRealSchedule) {
       const card = new Card({
         question: this,
         cardIdx: 0,
@@ -11672,7 +11673,10 @@ var Question = class _Question {
     }
     const resultBase = this.questionText.formatTopicAndQuestion();
     const blockId = this.questionText.obsidianBlockId;
-    const scheduleHtml = DataStoreAlgorithm.getInstance().questionFormatScheduleAsHtmlComment(this);
+    let scheduleHtml = "";
+    if (hasRealSchedule) {
+      scheduleHtml = DataStoreAlgorithm.getInstance().questionFormatScheduleAsHtmlComment(this);
+    }
     let result;
     if (this.questionType === 5 /* HeaderBasic */) {
       const lines = resultBase.split("\n");
@@ -11685,15 +11689,21 @@ var Question = class _Question {
           break;
         }
       }
-      if (lastSeparatorIndex !== -1) {
+      if (lastSeparatorIndex !== -1 && hasRealSchedule) {
         contentLines.splice(lastSeparatorIndex + 1, contentLines.length - lastSeparatorIndex - 1);
         contentLines.splice(lastSeparatorIndex + 1, 0, scheduleHtml);
         result = [headerLine, ...contentLines].join("\n");
       } else {
-        result = resultBase + this.getHtmlCommentSeparator(settings) + scheduleHtml;
+        result = resultBase;
+        if (hasRealSchedule) {
+          result += this.getHtmlCommentSeparator(settings) + scheduleHtml;
+        }
       }
     } else {
-      result = resultBase + this.getHtmlCommentSeparator(settings) + scheduleHtml;
+      result = resultBase;
+      if (hasRealSchedule) {
+        result += this.getHtmlCommentSeparator(settings) + scheduleHtml;
+      }
     }
     if (blockId) {
       result += " " + blockId;
