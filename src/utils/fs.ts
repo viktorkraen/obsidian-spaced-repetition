@@ -1,4 +1,4 @@
-import { minimatch } from "minimatch";
+import { Minimatch } from "minimatch";
 
 export function isSupportedFileType(path: string): boolean {
     return path.split(".").pop().toLowerCase() === "md";
@@ -9,5 +9,5 @@ export function isSupportedFileType(path: string): boolean {
 //  1. The `path` starts with `pattern`
 //  2. The `path` matches the glob `pattern`
 export function pathMatchesPattern(path: string, pattern: string) {
-    return path.startsWith(pattern) || minimatch(path, pattern);
+    return path.startsWith(pattern) || new Minimatch(pattern).match(path);
 }

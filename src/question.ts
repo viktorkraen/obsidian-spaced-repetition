@@ -224,15 +224,15 @@ export class Question {
         this.cards.forEach((card) => (card.question = this));
     }
 
-    formatForNote(settings: SRSettings): string {
+    formatForNote(settings: SRSettings, skipSchedule: boolean = false): string {
         // Для кожної картки, якщо немає schedule, встановлюємо dummy schedule info
-        if (this.cards && this.cards.length > 0) {
+        if (!skipSchedule && this.cards && this.cards.length > 0) {
             this.cards.forEach((card) => {
                 if (!card.scheduleInfo) {
                     card.scheduleInfo = RepItemScheduleInfoOsr.getDummyScheduleForNewCard(settings);
                 }
             });
-        } else if (this.questionType === CardType.HeaderBasic) {
+        } else if (!skipSchedule && this.questionType === CardType.HeaderBasic) {
             // Для HeaderBasic, якщо картки ще не створені, створюємо їх
             const card = new Card({
                 question: this,
@@ -246,10 +246,12 @@ export class Question {
 
         const resultBase: string = this.questionText.formatTopicAndQuestion();
         const blockId: string = this.questionText.obsidianBlockId;
-        // Завжди генеруємо scheduleHtml
-        const scheduleHtml = DataStoreAlgorithm.getInstance().questionFormatScheduleAsHtmlComment(this);
         
         let result: string;
+        
+        // Генеруємо scheduleHtml тільки якщо не пропускаємо розклад
+        const scheduleHtml = !skipSchedule ? DataStoreAlgorithm.getInstance().questionFormatScheduleAsHtmlComment(this) : '';
+        
         if (this.questionType === CardType.HeaderBasic) {
             const lines = resultBase.split("\n");
             const headerLine = lines[0];
@@ -267,14 +269,22 @@ export class Question {
             if (lastSeparatorIndex !== -1) {
                 // Видаляємо будь-які існуючі SR коментарі після роздільника
                 contentLines.splice(lastSeparatorIndex + 1, contentLines.length - lastSeparatorIndex - 1);
-                // Додаємо scheduleHtml після останнього роздільника
-                contentLines.splice(lastSeparatorIndex + 1, 0, scheduleHtml);
+                // Додаємо scheduleHtml після останнього роздільника, якщо він є
+                if (scheduleHtml) {
+                    contentLines.splice(lastSeparatorIndex + 1, 0, scheduleHtml);
+                }
                 result = [headerLine, ...contentLines].join("\n");
             } else {
-                result = resultBase + this.getHtmlCommentSeparator(settings) + scheduleHtml;
+                result = resultBase;
+                if (scheduleHtml) {
+                    result += this.getHtmlCommentSeparator(settings) + scheduleHtml;
+                }
             }
         } else {
-            result = resultBase + this.getHtmlCommentSeparator(settings) + scheduleHtml;
+            result = resultBase;
+            if (scheduleHtml) {
+                result += this.getHtmlCommentSeparator(settings) + scheduleHtml;
+            }
         }
 
         if (blockId) {
@@ -291,7 +301,7 @@ export class Question {
         //      1. the topic path (if present),
         //      2. the question text
         //      3. the schedule HTML comment (if present)
-        const replacementText = this.formatForNote(settings);
+        const replacementText = this.formatForNote(settings, true); // Skip schedule when editing
 
         let newText = MultiLineTextFinder.findAndReplace(noteText, originalText, replacementText);
         if (newText) {

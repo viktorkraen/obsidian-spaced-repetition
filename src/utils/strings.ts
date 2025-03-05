@@ -223,20 +223,55 @@ export class MultiLineTextFinder {
         replacementText: string,
     ): string | null {
         let result: string = null;
-        if (sourceText.includes(searchText)) {
-            result = literalStringReplace(sourceText, searchText, replacementText);
+
+        console.log('=== MultiLineTextFinder.findAndReplace ===');
+        console.log('Source text:', JSON.stringify(sourceText));
+        console.log('Search text:', JSON.stringify(searchText));
+        console.log('Replacement text:', JSON.stringify(replacementText));
+
+        // Нормалізуємо текст для пошуку
+        const normalizedSourceText = sourceText.replace(/\r\n/g, '\n');
+        const normalizedSearchText = searchText.replace(/\r\n/g, '\n');
+
+        console.log('Normalized source text:', JSON.stringify(normalizedSourceText));
+        console.log('Normalized search text:', JSON.stringify(normalizedSearchText));
+
+        // Спочатку спробуємо знайти точний збіг
+        if (normalizedSourceText.includes(normalizedSearchText)) {
+            console.log('Found exact match!');
+            result = literalStringReplace(normalizedSourceText, normalizedSearchText, replacementText);
         } else {
-            const sourceTextArray = splitTextIntoLineArray(sourceText);
-            const searchTextArray = splitTextIntoLineArray(searchText);
+            console.log('No exact match, trying line by line...');
+            // Якщо точний збіг не знайдено, спробуємо знайти по рядках
+            const sourceTextArray = splitTextIntoLineArray(normalizedSourceText);
+            const searchTextArray = splitTextIntoLineArray(normalizedSearchText)
+                .filter(line => line.trim() !== ''); // Видаляємо порожні рядки з пошукового тексту
+            
+            console.log('Source text array:', JSON.stringify(sourceTextArray));
+            console.log('Search text array:', JSON.stringify(searchTextArray));
+
             const lineNo: number | null = MultiLineTextFinder.find(
                 sourceTextArray,
                 searchTextArray,
             );
+            
+            console.log('Found at line:', lineNo);
+
             if (lineNo !== null) {
+                // Визначаємо кількість рядків для видалення, враховуючи порожні рядки
+                const endLineNo = findEndLine(sourceTextArray, lineNo, searchTextArray);
+                const linesToRemove = endLineNo - lineNo + 1;
+                
+                console.log('Start line:', lineNo);
+                console.log('End line:', endLineNo);
+                console.log('Lines to remove:', linesToRemove);
+                
                 const replacementTextArray = splitTextIntoLineArray(replacementText);
-                const linesToRemove: number = searchTextArray.length;
                 sourceTextArray.splice(lineNo, linesToRemove, ...replacementTextArray);
-                result = sourceTextArray.join("\n");
+                result = sourceTextArray.join('\n');
+                console.log('Successfully replaced text!');
+            } else {
+                console.log('Text not found in line by line search');
             }
         }
         return result;
@@ -245,20 +280,86 @@ export class MultiLineTextFinder {
     static find(sourceText: string[], searchText: string[]): number | null {
         let result: number = null;
         let searchIdx: number = 0;
+        let startLine: number = -1;
         const maxSearchIdx: number = searchText.length - 1;
+
+        console.log('=== MultiLineTextFinder.find ===');
+        
         for (let sourceIdx = 0; sourceIdx < sourceText.length; sourceIdx++) {
             const sourceLine: string = sourceText[sourceIdx].trim();
             const searchLine: string = searchText[searchIdx].trim();
-            if (searchLine == sourceLine) {
-                if (searchIdx == maxSearchIdx) {
-                    result = sourceIdx - searchIdx;
-                    break;
-                }
+
+            console.log(`Comparing line ${sourceIdx}:`);
+            console.log('Source:', JSON.stringify(sourceLine));
+            console.log('Search:', JSON.stringify(searchLine));
+
+            // Якщо знайшли перший рядок
+            if (searchIdx === 0 && sourceLine === searchLine) {
+                startLine = sourceIdx;
                 searchIdx++;
-            } else {
-                searchIdx = 0;
+                console.log('Found start at line:', startLine);
+                continue;
+            }
+
+            // Якщо ми вже знайшли початок
+            if (startLine !== -1) {
+                // Пропускаємо порожні рядки
+                if (sourceLine === '') {
+                    console.log('Skipping empty line in sequence');
+                    continue;
+                }
+
+                // Перевіряємо збіг поточного рядка
+                if (sourceLine === searchLine) {
+                    console.log('Match found in sequence');
+                    if (searchIdx === maxSearchIdx) {
+                        result = startLine;
+                        console.log('Found complete match starting at line:', result);
+                        break;
+                    }
+                    searchIdx++;
+                } else {
+                    // Якщо послідовність перервалась, починаємо спочатку
+                    console.log('Sequence broken, resetting');
+                    searchIdx = 0;
+                    startLine = -1;
+                    // Перевіряємо, чи поточний рядок не є початком нової послідовності
+                    if (sourceLine === searchText[0].trim()) {
+                        startLine = sourceIdx;
+                        searchIdx = 1;
+                        console.log('Found new start at line:', startLine);
+                    }
+                }
             }
         }
         return result;
     }
+}
+
+// Допоміжна функція для знаходження кінцевого рядка
+function findEndLine(sourceText: string[], startLine: number, searchText: string[]): number {
+    let endLine = startLine;
+    let searchIdx = 0;
+    
+    for (let i = startLine; i < sourceText.length; i++) {
+        const sourceLine = sourceText[i].trim();
+        
+        // Пропускаємо порожні рядки
+        if (sourceLine === '') {
+            continue;
+        }
+        
+        // Якщо знайшли збіг з пошуковим рядком
+        if (sourceLine === searchText[searchIdx].trim()) {
+            endLine = i;
+            searchIdx++;
+            
+            // Якщо знайшли всі пошукові рядки
+            if (searchIdx === searchText.length) {
+                break;
+            }
+        }
+    }
+    
+    return endLine;
 }
