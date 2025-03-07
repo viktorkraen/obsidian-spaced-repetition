@@ -5610,7 +5610,7 @@ __export(main_exports, {
   default: () => SRPlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian15 = require("obsidian");
+var import_obsidian16 = require("obsidian");
 
 // src/algorithms/base/repetition-item.ts
 var RepetitionItem = class {
@@ -9109,20 +9109,26 @@ var import_moment = __toESM(require_moment());
 function formatDateYYYYMMDD(ticks) {
   return ticks.format(PREFERRED_DATE_FORMAT);
 }
-var LiveDateProvider = class {
+var SimulatedDateProvider = class {
+  constructor() {
+    this.simulatedDate = null;
+  }
   get now() {
-    return (0, import_moment.default)();
+    return this.simulatedDate ? this.simulatedDate.clone() : (0, import_moment.default)();
   }
   get today() {
-    return (0, import_moment.default)().startOf("day");
+    return this.simulatedDate ? this.simulatedDate.clone().startOf("day") : (0, import_moment.default)().startOf("day");
+  }
+  setSimulatedDate(date) {
+    this.simulatedDate = date;
   }
 };
+var globalDateProvider = new SimulatedDateProvider();
 var DateUtil = class {
   static dateStrToMoment(str) {
     return (0, import_moment.default)(str, ALLOWED_DATE_FORMATS);
   }
 };
-var globalDateProvider = new LiveDateProvider();
 
 // src/algorithms/base/rep-item-schedule-info.ts
 var RepItemScheduleInfo = class {
@@ -9634,13 +9640,14 @@ var DeckStats = class {
   }
 };
 var FlashcardReviewSequencer = class {
-  constructor(reviewMode, cardSequencer, settings, srsAlgorithm, questionPostponementList, dueDateFlashcardHistogram) {
+  constructor(reviewMode, cardSequencer, settings, srsAlgorithm, questionPostponementList, dueDateFlashcardHistogram, plugin) {
     this.reviewMode = reviewMode;
     this.cardSequencer = cardSequencer;
     this.settings = settings;
     this.srsAlgorithm = srsAlgorithm;
     this.questionPostponementList = questionPostponementList;
     this.dueDateFlashcardHistogram = dueDateFlashcardHistogram;
+    this.plugin = plugin;
   }
   get hasCurrentCard() {
     return this.cardSequencer.currentCard != null;
@@ -9763,6 +9770,20 @@ var FlashcardReviewSequencer = class {
     const q2 = this.currentQuestion.questionText;
     q2.actualQuestion = text;
     await DataStore.getInstance().questionWrite(this.currentQuestion);
+  }
+  async reloadCardsForDate(date) {
+    var _a;
+    const currentDeckPath = ((_a = this.currentDeck) == null ? void 0 : _a.getTopicPath()) || TopicPath.emptyPath;
+    const originalDeckTree = this._originalDeckTree.clone();
+    const remainingDeckTree = DeckTreeFilter.filterForRemainingCards(
+      this.questionPostponementList,
+      originalDeckTree,
+      this.reviewMode
+    );
+    this.setDeckTree(originalDeckTree, remainingDeckTree);
+    if (currentDeckPath) {
+      this.setCurrentDeck(currentDeckPath);
+    }
   }
 };
 
@@ -11085,6 +11106,27 @@ var Question = class {
     }
     return newText;
   }
+  updateQuestionWithinNoteTextWithSchedule(noteText, settings) {
+    const originalText = this.questionText.original;
+    const replacementText = this.formatForNote(settings, false);
+    let newText = MultiLineTextFinder.findAndReplace(noteText, originalText, replacementText);
+    if (newText) {
+      this.questionText = QuestionText.create(
+        replacementText,
+        this.questionText.textDirection,
+        settings
+      );
+    } else {
+      console.error(
+        `updateQuestionText: Text not found: ${originalText.substring(
+          0,
+          100
+        )} in note: ${noteText.substring(0, 100)}`
+      );
+      newText = noteText;
+    }
+    return newText;
+  }
   async writeQuestion(settings) {
     const fileText = await this.note.file.read();
     const newText = this.updateQuestionWithinNoteText(fileText, settings);
@@ -12097,6 +12139,7 @@ ${fileText}`;
 };
 
 // src/data-stores/notes/notes.ts
+var import_obsidian4 = require("obsidian");
 var StoreInNotes = class {
   constructor(settings) {
     this.settings = settings;
@@ -12129,7 +12172,10 @@ var StoreInNotes = class {
     return questionText.replace(/<!--SR:.+-->/gm, "");
   }
   async questionWriteSchedule(question) {
-    await this.questionWrite(question);
+    const fileText = await question.note.file.read();
+    const newText = question.updateQuestionWithinNoteTextWithSchedule(fileText, this.settings);
+    await question.note.file.write(newText);
+    question.hasChanged = false;
   }
   async questionWrite(question) {
     const fileText = await question.note.file.read();
@@ -12137,12 +12183,29 @@ var StoreInNotes = class {
     await question.note.file.write(newText);
     question.hasChanged = false;
   }
+  async getSettings() {
+    return this.settings;
+  }
+  async getNoteText(topicPath) {
+    const file = this.app.vault.getAbstractFileByPath(topicPath);
+    if (!file || !(file instanceof import_obsidian4.TFile)) {
+      throw new Error(`File not found or not a file: ${topicPath}`);
+    }
+    return await this.app.vault.read(file);
+  }
+  async writeNoteText(topicPath, newText) {
+    const file = this.app.vault.getAbstractFileByPath(topicPath);
+    if (!file || !(file instanceof import_obsidian4.TFile)) {
+      throw new Error(`File not found or not a file: ${topicPath}`);
+    }
+    await this.app.vault.modify(file, newText);
+  }
 };
 
 // src/gui/review-queue-list-view.tsx
-var import_obsidian4 = require("obsidian");
+var import_obsidian5 = require("obsidian");
 var REVIEW_QUEUE_VIEW_TYPE = "review-queue-list-view";
-var ReviewQueueListView = class extends import_obsidian4.ItemView {
+var ReviewQueueListView = class extends import_obsidian5.ItemView {
   constructor(leaf, nextNoteReviewHandler, settings) {
     super(leaf);
     this.nextNoteReviewHandler = nextNoteReviewHandler;
@@ -12313,7 +12376,7 @@ var ReviewQueueListView = class extends import_obsidian4.ItemView {
       "contextmenu",
       (event) => {
         event.preventDefault();
-        const fileMenu = new import_obsidian4.Menu();
+        const fileMenu = new import_obsidian5.Menu();
         this.app.workspace.trigger("file-menu", fileMenu, file, "my-context-menu", null);
         fileMenu.showAtPosition({
           x: event.pageX,
@@ -12338,7 +12401,7 @@ var ReviewQueueListView = class extends import_obsidian4.ItemView {
 };
 
 // src/gui/settings.tsx
-var import_obsidian6 = require("obsidian");
+var import_obsidian7 = require("obsidian");
 
 // node_modules/@kurkle/color/dist/color.esm.js
 function round(v2) {
@@ -26243,7 +26306,7 @@ function createStatsChart(type, canvasId, title, subtitle, labels, data, summary
 }
 
 // src/gui/tabs.tsx
-var import_obsidian5 = require("obsidian");
+var import_obsidian6 = require("obsidian");
 var import_vhtml2 = __toESM(require_vhtml());
 function createTabs(containerElement, tabs, activateTabId) {
   const tabHeader = containerElement.createEl("div", {
@@ -26326,7 +26389,7 @@ function createTabs(containerElement, tabs, activateTabId) {
       event.preventDefault();
     };
     if (tab.icon)
-      (0, import_obsidian5.setIcon)(button, tab.icon);
+      (0, import_obsidian6.setIcon)(button, tab.icon);
     button.insertAdjacentHTML("beforeend", /* @__PURE__ */ (0, import_vhtml2.default)("span", { style: "padding-left: 5px;" }, tab.title));
     tabButtons[tabId] = button;
     tabContentContainers[tabId] = containerElement.createEl("div", {
@@ -26349,7 +26412,7 @@ function applySettingsUpdate(callback2) {
   clearTimeout(applyDebounceTimer);
   applyDebounceTimer = window.setTimeout(callback2, 512);
 }
-var SRSettingTab = class extends import_obsidian6.PluginSettingTab {
+var SRSettingTab = class extends import_obsidian7.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
     this.lastPosition = {
@@ -26420,7 +26483,7 @@ var SRSettingTab = class extends import_obsidian6.PluginSettingTab {
   }
   async tabFlashcards(containerEl) {
     containerEl.createEl("h3", { text: t("GROUP_TAGS_FOLDERS") });
-    new import_obsidian6.Setting(containerEl).setName(t("FLASHCARD_TAGS")).setDesc(t("FLASHCARD_TAGS_DESC")).addTextArea(
+    new import_obsidian7.Setting(containerEl).setName(t("FLASHCARD_TAGS")).setDesc(t("FLASHCARD_TAGS_DESC")).addTextArea(
       (text) => text.setValue(this.plugin.data.settings.flashcardTags.join(" ")).onChange((value) => {
         applySettingsUpdate(async () => {
           this.plugin.data.settings.flashcardTags = value.split(/\s+/);
@@ -26428,7 +26491,7 @@ var SRSettingTab = class extends import_obsidian6.PluginSettingTab {
         });
       })
     );
-    new import_obsidian6.Setting(containerEl).setName(t("CONVERT_FOLDERS_TO_DECKS")).setDesc(t("CONVERT_FOLDERS_TO_DECKS_DESC")).addToggle(
+    new import_obsidian7.Setting(containerEl).setName(t("CONVERT_FOLDERS_TO_DECKS")).setDesc(t("CONVERT_FOLDERS_TO_DECKS_DESC")).addToggle(
       (toggle) => toggle.setValue(this.plugin.data.settings.convertFoldersToDecks).onChange(async (value) => {
         this.plugin.data.settings.convertFoldersToDecks = value;
         await this.plugin.savePluginData();
@@ -26436,13 +26499,13 @@ var SRSettingTab = class extends import_obsidian6.PluginSettingTab {
     );
     this.createSettingFoldersToIgnore(containerEl);
     containerEl.createEl("h3", { text: t("GROUP_FLASHCARD_REVIEW") });
-    new import_obsidian6.Setting(containerEl).setName(t("BURY_SIBLINGS_TILL_NEXT_DAY")).setDesc(t("BURY_SIBLINGS_TILL_NEXT_DAY_DESC")).addToggle(
+    new import_obsidian7.Setting(containerEl).setName(t("BURY_SIBLINGS_TILL_NEXT_DAY")).setDesc(t("BURY_SIBLINGS_TILL_NEXT_DAY_DESC")).addToggle(
       (toggle) => toggle.setValue(this.plugin.data.settings.burySiblingCards).onChange(async (value) => {
         this.plugin.data.settings.burySiblingCards = value;
         await this.plugin.savePluginData();
       })
     );
-    new import_obsidian6.Setting(containerEl).setName(t("REVIEW_CARD_ORDER_WITHIN_DECK")).addDropdown(
+    new import_obsidian7.Setting(containerEl).setName(t("REVIEW_CARD_ORDER_WITHIN_DECK")).addDropdown(
       (dropdown) => dropdown.addOptions({
         NewFirstSequential: t("REVIEW_CARD_ORDER_NEW_FIRST_SEQUENTIAL"),
         DueFirstSequential: t("REVIEW_CARD_ORDER_DUE_FIRST_SEQUENTIAL"),
@@ -26456,7 +26519,7 @@ var SRSettingTab = class extends import_obsidian6.PluginSettingTab {
       })
     );
     const deckOrderEnabled = this.plugin.data.settings.flashcardCardOrder != "EveryCardRandomDeckAndCard";
-    new import_obsidian6.Setting(containerEl).setName(t("REVIEW_DECK_ORDER")).addDropdown(
+    new import_obsidian7.Setting(containerEl).setName(t("REVIEW_DECK_ORDER")).addDropdown(
       (dropdown) => dropdown.addOptions(
         deckOrderEnabled ? {
           // eslint-disable-next-line camelcase
@@ -26480,7 +26543,7 @@ var SRSettingTab = class extends import_obsidian6.PluginSettingTab {
       })
     );
     containerEl.createEl("h3", { text: t("GROUP_FLASHCARD_SEPARATORS") });
-    const convertHighlightsToClozesEl = new import_obsidian6.Setting(containerEl).setName(
+    const convertHighlightsToClozesEl = new import_obsidian7.Setting(containerEl).setName(
       t("CONVERT_HIGHLIGHTS_TO_CLOZES")
     );
     convertHighlightsToClozesEl.descEl.insertAdjacentHTML(
@@ -26502,7 +26565,7 @@ var SRSettingTab = class extends import_obsidian6.PluginSettingTab {
         this.display();
       })
     );
-    const convertHeadingsToBasicEl = new import_obsidian6.Setting(containerEl).setName(
+    const convertHeadingsToBasicEl = new import_obsidian7.Setting(containerEl).setName(
       t("CONVERT_HEADINGS_TO_BASIC")
     );
     convertHeadingsToBasicEl.descEl.insertAdjacentHTML(
@@ -26515,7 +26578,7 @@ var SRSettingTab = class extends import_obsidian6.PluginSettingTab {
         await this.plugin.savePluginData();
       })
     );
-    const convertBoldTextToClozesEl = new import_obsidian6.Setting(containerEl).setName(
+    const convertBoldTextToClozesEl = new import_obsidian7.Setting(containerEl).setName(
       t("CONVERT_BOLD_TEXT_TO_CLOZES")
     );
     convertBoldTextToClozesEl.descEl.insertAdjacentHTML(
@@ -26537,7 +26600,7 @@ var SRSettingTab = class extends import_obsidian6.PluginSettingTab {
         this.display();
       })
     );
-    const convertCurlyBracketsToClozesEl = new import_obsidian6.Setting(containerEl).setName(
+    const convertCurlyBracketsToClozesEl = new import_obsidian7.Setting(containerEl).setName(
       t("CONVERT_CURLY_BRACKETS_TO_CLOZES")
     );
     convertCurlyBracketsToClozesEl.descEl.insertAdjacentHTML(
@@ -26561,7 +26624,7 @@ var SRSettingTab = class extends import_obsidian6.PluginSettingTab {
         this.display();
       })
     );
-    const clozePatternsEl = new import_obsidian6.Setting(containerEl).setName(t("CLOZE_PATTERNS"));
+    const clozePatternsEl = new import_obsidian7.Setting(containerEl).setName(t("CLOZE_PATTERNS"));
     clozePatternsEl.descEl.insertAdjacentHTML(
       "beforeend",
       t("CLOZE_PATTERNS_DESC", {
@@ -26599,7 +26662,7 @@ var SRSettingTab = class extends import_obsidian6.PluginSettingTab {
         });
       })
     );
-    new import_obsidian6.Setting(containerEl).setName(t("INLINE_CARDS_SEPARATOR")).setDesc(t("FIX_SEPARATORS_MANUALLY_WARNING")).addText(
+    new import_obsidian7.Setting(containerEl).setName(t("INLINE_CARDS_SEPARATOR")).setDesc(t("FIX_SEPARATORS_MANUALLY_WARNING")).addText(
       (text) => text.setValue(this.plugin.data.settings.singleLineCardSeparator).onChange((value) => {
         applySettingsUpdate(async () => {
           this.plugin.data.settings.singleLineCardSeparator = value;
@@ -26613,7 +26676,7 @@ var SRSettingTab = class extends import_obsidian6.PluginSettingTab {
         this.display();
       });
     });
-    new import_obsidian6.Setting(containerEl).setName(t("INLINE_REVERSED_CARDS_SEPARATOR")).setDesc(t("FIX_SEPARATORS_MANUALLY_WARNING")).addText(
+    new import_obsidian7.Setting(containerEl).setName(t("INLINE_REVERSED_CARDS_SEPARATOR")).setDesc(t("FIX_SEPARATORS_MANUALLY_WARNING")).addText(
       (text) => text.setValue(this.plugin.data.settings.singleLineReversedCardSeparator).onChange((value) => {
         applySettingsUpdate(async () => {
           this.plugin.data.settings.singleLineReversedCardSeparator = value;
@@ -26627,7 +26690,7 @@ var SRSettingTab = class extends import_obsidian6.PluginSettingTab {
         this.display();
       });
     });
-    new import_obsidian6.Setting(containerEl).setName(t("MULTILINE_CARDS_SEPARATOR")).setDesc(t("FIX_SEPARATORS_MANUALLY_WARNING")).addText(
+    new import_obsidian7.Setting(containerEl).setName(t("MULTILINE_CARDS_SEPARATOR")).setDesc(t("FIX_SEPARATORS_MANUALLY_WARNING")).addText(
       (text) => text.setValue(this.plugin.data.settings.multilineCardSeparator).onChange((value) => {
         applySettingsUpdate(async () => {
           this.plugin.data.settings.multilineCardSeparator = value;
@@ -26641,7 +26704,7 @@ var SRSettingTab = class extends import_obsidian6.PluginSettingTab {
         this.display();
       });
     });
-    new import_obsidian6.Setting(containerEl).setName(t("MULTILINE_REVERSED_CARDS_SEPARATOR")).setDesc(t("FIX_SEPARATORS_MANUALLY_WARNING")).addText(
+    new import_obsidian7.Setting(containerEl).setName(t("MULTILINE_REVERSED_CARDS_SEPARATOR")).setDesc(t("FIX_SEPARATORS_MANUALLY_WARNING")).addText(
       (text) => text.setValue(this.plugin.data.settings.multilineReversedCardSeparator).onChange((value) => {
         applySettingsUpdate(async () => {
           this.plugin.data.settings.multilineReversedCardSeparator = value;
@@ -26655,7 +26718,7 @@ var SRSettingTab = class extends import_obsidian6.PluginSettingTab {
         this.display();
       });
     });
-    new import_obsidian6.Setting(containerEl).setName(t("MULTILINE_CARDS_END_MARKER")).setDesc(t("FIX_SEPARATORS_MANUALLY_WARNING")).addText(
+    new import_obsidian7.Setting(containerEl).setName(t("MULTILINE_CARDS_END_MARKER")).setDesc(t("FIX_SEPARATORS_MANUALLY_WARNING")).addText(
       (text) => text.setValue(this.plugin.data.settings.multilineCardEndMarker).onChange((value) => {
         applySettingsUpdate(async () => {
           this.plugin.data.settings.multilineCardEndMarker = value;
@@ -26672,7 +26735,7 @@ var SRSettingTab = class extends import_obsidian6.PluginSettingTab {
   }
   async tabNotes(containerEl) {
     containerEl.createEl("h3", { text: t("GROUP_TAGS_FOLDERS") });
-    new import_obsidian6.Setting(containerEl).setName(t("TAGS_TO_REVIEW")).setDesc(t("TAGS_TO_REVIEW_DESC")).addTextArea(
+    new import_obsidian7.Setting(containerEl).setName(t("TAGS_TO_REVIEW")).setDesc(t("TAGS_TO_REVIEW_DESC")).addTextArea(
       (text) => text.setValue(this.plugin.data.settings.tagsToReview.join(" ")).onChange((value) => {
         applySettingsUpdate(async () => {
           this.plugin.data.settings.tagsToReview = value.split(/\s+/);
@@ -26682,31 +26745,31 @@ var SRSettingTab = class extends import_obsidian6.PluginSettingTab {
     );
     this.createSettingFoldersToIgnore(containerEl);
     containerEl.createEl("h3", { text: t("NOTES_REVIEW_QUEUE") });
-    new import_obsidian6.Setting(containerEl).setName(t("AUTO_NEXT_NOTE")).addToggle(
+    new import_obsidian7.Setting(containerEl).setName(t("AUTO_NEXT_NOTE")).addToggle(
       (toggle) => toggle.setValue(this.plugin.data.settings.autoNextNote).onChange(async (value) => {
         this.plugin.data.settings.autoNextNote = value;
         await this.plugin.savePluginData();
       })
     );
-    new import_obsidian6.Setting(containerEl).setName(t("OPEN_RANDOM_NOTE")).setDesc(t("OPEN_RANDOM_NOTE_DESC")).addToggle(
+    new import_obsidian7.Setting(containerEl).setName(t("OPEN_RANDOM_NOTE")).setDesc(t("OPEN_RANDOM_NOTE_DESC")).addToggle(
       (toggle) => toggle.setValue(this.plugin.data.settings.openRandomNote).onChange(async (value) => {
         this.plugin.data.settings.openRandomNote = value;
         await this.plugin.savePluginData();
       })
     );
-    new import_obsidian6.Setting(containerEl).setName(t("REVIEW_PANE_ON_STARTUP")).addToggle(
+    new import_obsidian7.Setting(containerEl).setName(t("REVIEW_PANE_ON_STARTUP")).addToggle(
       (toggle) => toggle.setValue(this.plugin.data.settings.enableNoteReviewPaneOnStartup).onChange(async (value) => {
         this.plugin.data.settings.enableNoteReviewPaneOnStartup = value;
         await this.plugin.savePluginData();
       })
     );
-    new import_obsidian6.Setting(containerEl).setName(t("MAX_N_DAYS_REVIEW_QUEUE")).addText(
+    new import_obsidian7.Setting(containerEl).setName(t("MAX_N_DAYS_REVIEW_QUEUE")).addText(
       (text) => text.setValue(this.plugin.data.settings.maxNDaysNotesReviewQueue.toString()).onChange((value) => {
         applySettingsUpdate(async () => {
           const numValue = Number.parseInt(value);
           if (!isNaN(numValue)) {
             if (numValue < 1) {
-              new import_obsidian6.Notice(t("MIN_ONE_DAY"));
+              new import_obsidian7.Notice(t("MIN_ONE_DAY"));
               text.setValue(
                 this.plugin.data.settings.maxNDaysNotesReviewQueue.toString()
               );
@@ -26715,7 +26778,7 @@ var SRSettingTab = class extends import_obsidian6.PluginSettingTab {
             this.plugin.data.settings.maxNDaysNotesReviewQueue = numValue;
             await this.plugin.savePluginData();
           } else {
-            new import_obsidian6.Notice(t("VALID_NUMBER_WARNING"));
+            new import_obsidian7.Notice(t("VALID_NUMBER_WARNING"));
           }
         });
       })
@@ -26728,7 +26791,7 @@ var SRSettingTab = class extends import_obsidian6.PluginSettingTab {
     });
   }
   async createSettingFoldersToIgnore(containerEl) {
-    new import_obsidian6.Setting(containerEl).setName(t("FOLDERS_TO_IGNORE")).setDesc(t("FOLDERS_TO_IGNORE_DESC")).addTextArea(
+    new import_obsidian7.Setting(containerEl).setName(t("FOLDERS_TO_IGNORE")).setDesc(t("FOLDERS_TO_IGNORE_DESC")).addTextArea(
       (text) => text.setValue(this.plugin.data.settings.noteFoldersToIgnore.join("\n")).onChange((value) => {
         applySettingsUpdate(async () => {
           this.plugin.data.settings.noteFoldersToIgnore = value.split(/\n+/).map((v2) => v2.trim()).filter((v2) => v2);
@@ -26740,7 +26803,7 @@ var SRSettingTab = class extends import_obsidian6.PluginSettingTab {
   }
   async tabUiPreferences(containerEl) {
     containerEl.createEl("h3", { text: t("OBSIDIAN_INTEGRATION") });
-    new import_obsidian6.Setting(containerEl).setName(t("OPEN_IN_TAB")).setDesc(t("OPEN_IN_TAB_DESC")).addToggle(
+    new import_obsidian7.Setting(containerEl).setName(t("OPEN_IN_TAB")).setDesc(t("OPEN_IN_TAB_DESC")).addToggle(
       (toggle) => toggle.setValue(this.plugin.data.settings.openViewInNewTab).onChange(async (value) => {
         if (value) {
           this.plugin.registerSRFocusListener();
@@ -26752,21 +26815,21 @@ var SRSettingTab = class extends import_obsidian6.PluginSettingTab {
         await this.plugin.savePluginData();
       })
     );
-    new import_obsidian6.Setting(containerEl).setName(t("SHOW_RIBBON_ICON")).setDesc(t("SHOW_RIBBON_ICON_DESC")).addToggle(
+    new import_obsidian7.Setting(containerEl).setName(t("SHOW_RIBBON_ICON")).setDesc(t("SHOW_RIBBON_ICON_DESC")).addToggle(
       (toggle) => toggle.setValue(this.plugin.data.settings.showRibbonIcon).onChange(async (value) => {
         this.plugin.data.settings.showRibbonIcon = value;
         await this.plugin.savePluginData();
         this.plugin.showRibbonIcon(value);
       })
     );
-    new import_obsidian6.Setting(containerEl).setName(t("SHOW_STATUS_BAR")).setDesc(t("SHOW_STATUS_BAR_DESC")).addToggle(
+    new import_obsidian7.Setting(containerEl).setName(t("SHOW_STATUS_BAR")).setDesc(t("SHOW_STATUS_BAR_DESC")).addToggle(
       (toggle) => toggle.setValue(this.plugin.data.settings.showStatusBar).onChange(async (value) => {
         this.plugin.data.settings.showStatusBar = value;
         await this.plugin.savePluginData();
         this.plugin.showStatusBar(value);
       })
     );
-    new import_obsidian6.Setting(containerEl).setName(t("ENABLE_FILE_MENU_REVIEW_OPTIONS")).setDesc(t("ENABLE_FILE_MENU_REVIEW_OPTIONS_DESC")).addToggle(
+    new import_obsidian7.Setting(containerEl).setName(t("ENABLE_FILE_MENU_REVIEW_OPTIONS")).setDesc(t("ENABLE_FILE_MENU_REVIEW_OPTIONS_DESC")).addToggle(
       (toggle) => toggle.setValue(!this.plugin.data.settings.disableFileMenuReviewOptions).onChange(async (value) => {
         this.plugin.data.settings.disableFileMenuReviewOptions = !value;
         await this.plugin.savePluginData();
@@ -26774,25 +26837,25 @@ var SRSettingTab = class extends import_obsidian6.PluginSettingTab {
       })
     );
     containerEl.createEl("h3", { text: t("FLASHCARDS") });
-    new import_obsidian6.Setting(containerEl).setName(t("INITIALLY_EXPAND_SUBDECKS_IN_TREE")).setDesc(t("INITIALLY_EXPAND_SUBDECKS_IN_TREE_DESC")).addToggle(
+    new import_obsidian7.Setting(containerEl).setName(t("INITIALLY_EXPAND_SUBDECKS_IN_TREE")).setDesc(t("INITIALLY_EXPAND_SUBDECKS_IN_TREE_DESC")).addToggle(
       (toggle) => toggle.setValue(this.plugin.data.settings.initiallyExpandAllSubdecksInTree).onChange(async (value) => {
         this.plugin.data.settings.initiallyExpandAllSubdecksInTree = value;
         await this.plugin.savePluginData();
       })
     );
-    new import_obsidian6.Setting(containerEl).setName(t("SHOW_CARD_CONTEXT")).setDesc(t("SHOW_CARD_CONTEXT_DESC")).addToggle(
+    new import_obsidian7.Setting(containerEl).setName(t("SHOW_CARD_CONTEXT")).setDesc(t("SHOW_CARD_CONTEXT_DESC")).addToggle(
       (toggle) => toggle.setValue(this.plugin.data.settings.showContextInCards).onChange(async (value) => {
         this.plugin.data.settings.showContextInCards = value;
         await this.plugin.savePluginData();
       })
     );
-    new import_obsidian6.Setting(containerEl).setName(t("SHOW_INTERVAL_IN_REVIEW_BUTTONS")).setDesc(t("SHOW_INTERVAL_IN_REVIEW_BUTTONS_DESC")).addToggle(
+    new import_obsidian7.Setting(containerEl).setName(t("SHOW_INTERVAL_IN_REVIEW_BUTTONS")).setDesc(t("SHOW_INTERVAL_IN_REVIEW_BUTTONS_DESC")).addToggle(
       (toggle) => toggle.setValue(this.plugin.data.settings.showIntervalInReviewButtons).onChange(async (value) => {
         this.plugin.data.settings.showIntervalInReviewButtons = value;
         await this.plugin.savePluginData();
       })
     );
-    new import_obsidian6.Setting(containerEl).setName(t("CARD_MODAL_HEIGHT_PERCENT")).setDesc(t("CARD_MODAL_SIZE_PERCENT_DESC")).addSlider(
+    new import_obsidian7.Setting(containerEl).setName(t("CARD_MODAL_HEIGHT_PERCENT")).setDesc(t("CARD_MODAL_SIZE_PERCENT_DESC")).addSlider(
       (slider) => slider.setLimits(10, 100, 5).setValue(this.plugin.data.settings.flashcardHeightPercentage).setDynamicTooltip().onChange(async (value) => {
         this.plugin.data.settings.flashcardHeightPercentage = value;
         await this.plugin.savePluginData();
@@ -26804,7 +26867,7 @@ var SRSettingTab = class extends import_obsidian6.PluginSettingTab {
         this.display();
       });
     });
-    new import_obsidian6.Setting(containerEl).setName(t("CARD_MODAL_WIDTH_PERCENT")).setDesc(t("CARD_MODAL_SIZE_PERCENT_DESC")).addSlider(
+    new import_obsidian7.Setting(containerEl).setName(t("CARD_MODAL_WIDTH_PERCENT")).setDesc(t("CARD_MODAL_SIZE_PERCENT_DESC")).addSlider(
       (slider) => slider.setLimits(10, 100, 5).setValue(this.plugin.data.settings.flashcardWidthPercentage).setDynamicTooltip().onChange(async (value) => {
         this.plugin.data.settings.flashcardWidthPercentage = value;
         await this.plugin.savePluginData();
@@ -26817,7 +26880,7 @@ var SRSettingTab = class extends import_obsidian6.PluginSettingTab {
       });
     });
     containerEl.createEl("h3", { text: t("GROUP_FLASHCARDS_NOTES") });
-    new import_obsidian6.Setting(containerEl).setName(t("FLASHCARD_EASY_LABEL")).setDesc(t("FLASHCARD_EASY_DESC")).addText(
+    new import_obsidian7.Setting(containerEl).setName(t("FLASHCARD_EASY_LABEL")).setDesc(t("FLASHCARD_EASY_DESC")).addText(
       (text) => text.setValue(this.plugin.data.settings.flashcardEasyText).onChange((value) => {
         applySettingsUpdate(async () => {
           this.plugin.data.settings.flashcardEasyText = value;
@@ -26831,7 +26894,7 @@ var SRSettingTab = class extends import_obsidian6.PluginSettingTab {
         this.display();
       });
     });
-    new import_obsidian6.Setting(containerEl).setName(t("FLASHCARD_GOOD_LABEL")).setDesc(t("FLASHCARD_GOOD_DESC")).addText(
+    new import_obsidian7.Setting(containerEl).setName(t("FLASHCARD_GOOD_LABEL")).setDesc(t("FLASHCARD_GOOD_DESC")).addText(
       (text) => text.setValue(this.plugin.data.settings.flashcardGoodText).onChange((value) => {
         applySettingsUpdate(async () => {
           this.plugin.data.settings.flashcardGoodText = value;
@@ -26845,7 +26908,7 @@ var SRSettingTab = class extends import_obsidian6.PluginSettingTab {
         this.display();
       });
     });
-    new import_obsidian6.Setting(containerEl).setName(t("FLASHCARD_HARD_LABEL")).setDesc(t("FLASHCARD_HARD_DESC")).addText(
+    new import_obsidian7.Setting(containerEl).setName(t("FLASHCARD_HARD_LABEL")).setDesc(t("FLASHCARD_HARD_DESC")).addText(
       (text) => text.setValue(this.plugin.data.settings.flashcardHardText).onChange((value) => {
         applySettingsUpdate(async () => {
           this.plugin.data.settings.flashcardHardText = value;
@@ -26859,7 +26922,7 @@ var SRSettingTab = class extends import_obsidian6.PluginSettingTab {
         this.display();
       });
     });
-    new import_obsidian6.Setting(containerEl).setName(t("REVIEW_BUTTON_DELAY")).setDesc(t("REVIEW_BUTTON_DELAY_DESC")).addSlider(
+    new import_obsidian7.Setting(containerEl).setName(t("REVIEW_BUTTON_DELAY")).setDesc(t("REVIEW_BUTTON_DELAY_DESC")).addSlider(
       (slider) => slider.setLimits(0, 5e3, 100).setValue(this.plugin.data.settings.reviewButtonDelay).setDynamicTooltip().onChange(async (value) => {
         this.plugin.data.settings.reviewButtonDelay = value;
         await this.plugin.savePluginData();
@@ -26874,7 +26937,7 @@ var SRSettingTab = class extends import_obsidian6.PluginSettingTab {
   }
   async tabScheduling(containerEl) {
     containerEl.createEl("h3", { text: t("ALGORITHM") });
-    const algoSettingEl = new import_obsidian6.Setting(containerEl).setName(t("ALGORITHM"));
+    const algoSettingEl = new import_obsidian7.Setting(containerEl).setName(t("ALGORITHM"));
     algoSettingEl.descEl.insertAdjacentHTML(
       "beforeend",
       t("CHECK_ALGORITHM_WIKI", {
@@ -26889,20 +26952,20 @@ var SRSettingTab = class extends import_obsidian6.PluginSettingTab {
         await this.plugin.savePluginData();
       })
     );
-    new import_obsidian6.Setting(containerEl).setName(t("BASE_EASE")).setDesc(t("BASE_EASE_DESC")).addText(
+    new import_obsidian7.Setting(containerEl).setName(t("BASE_EASE")).setDesc(t("BASE_EASE_DESC")).addText(
       (text) => text.setValue(this.plugin.data.settings.baseEase.toString()).onChange((value) => {
         applySettingsUpdate(async () => {
           const numValue = Number.parseInt(value);
           if (!isNaN(numValue)) {
             if (numValue < 130) {
-              new import_obsidian6.Notice(t("BASE_EASE_MIN_WARNING"));
+              new import_obsidian7.Notice(t("BASE_EASE_MIN_WARNING"));
               text.setValue(this.plugin.data.settings.baseEase.toString());
               return;
             }
             this.plugin.data.settings.baseEase = numValue;
             await this.plugin.savePluginData();
           } else {
-            new import_obsidian6.Notice(t("VALID_NUMBER_WARNING"));
+            new import_obsidian7.Notice(t("VALID_NUMBER_WARNING"));
           }
         });
       })
@@ -26913,7 +26976,7 @@ var SRSettingTab = class extends import_obsidian6.PluginSettingTab {
         this.display();
       });
     });
-    new import_obsidian6.Setting(containerEl).setName(t("LAPSE_INTERVAL_CHANGE")).setDesc(t("LAPSE_INTERVAL_CHANGE_DESC")).addSlider(
+    new import_obsidian7.Setting(containerEl).setName(t("LAPSE_INTERVAL_CHANGE")).setDesc(t("LAPSE_INTERVAL_CHANGE_DESC")).addSlider(
       (slider) => slider.setLimits(1, 99, 1).setValue(this.plugin.data.settings.lapsesIntervalChange * 100).setDynamicTooltip().onChange(async (value) => {
         this.plugin.data.settings.lapsesIntervalChange = value / 100;
         await this.plugin.savePluginData();
@@ -26925,13 +26988,13 @@ var SRSettingTab = class extends import_obsidian6.PluginSettingTab {
         this.display();
       });
     });
-    new import_obsidian6.Setting(containerEl).setName(t("EASY_BONUS")).setDesc(t("EASY_BONUS_DESC")).addText(
+    new import_obsidian7.Setting(containerEl).setName(t("EASY_BONUS")).setDesc(t("EASY_BONUS_DESC")).addText(
       (text) => text.setValue((this.plugin.data.settings.easyBonus * 100).toString()).onChange((value) => {
         applySettingsUpdate(async () => {
           const numValue = Number.parseInt(value) / 100;
           if (!isNaN(numValue)) {
             if (numValue < 1) {
-              new import_obsidian6.Notice(t("EASY_BONUS_MIN_WARNING"));
+              new import_obsidian7.Notice(t("EASY_BONUS_MIN_WARNING"));
               text.setValue(
                 (this.plugin.data.settings.easyBonus * 100).toString()
               );
@@ -26940,7 +27003,7 @@ var SRSettingTab = class extends import_obsidian6.PluginSettingTab {
             this.plugin.data.settings.easyBonus = numValue;
             await this.plugin.savePluginData();
           } else {
-            new import_obsidian6.Notice(t("VALID_NUMBER_WARNING"));
+            new import_obsidian7.Notice(t("VALID_NUMBER_WARNING"));
           }
         });
       })
@@ -26951,19 +27014,19 @@ var SRSettingTab = class extends import_obsidian6.PluginSettingTab {
         this.display();
       });
     });
-    new import_obsidian6.Setting(containerEl).setName(t("LOAD_BALANCE")).setDesc(t("LOAD_BALANCE_DESC")).addToggle(
+    new import_obsidian7.Setting(containerEl).setName(t("LOAD_BALANCE")).setDesc(t("LOAD_BALANCE_DESC")).addToggle(
       (toggle) => toggle.setValue(this.plugin.data.settings.loadBalance).onChange(async (value) => {
         this.plugin.data.settings.loadBalance = value;
         await this.plugin.savePluginData();
       })
     );
-    new import_obsidian6.Setting(containerEl).setName(t("MAX_INTERVAL")).setDesc(t("MAX_INTERVAL_DESC")).addText(
+    new import_obsidian7.Setting(containerEl).setName(t("MAX_INTERVAL")).setDesc(t("MAX_INTERVAL_DESC")).addText(
       (text) => text.setValue(this.plugin.data.settings.maximumInterval.toString()).onChange((value) => {
         applySettingsUpdate(async () => {
           const numValue = Number.parseInt(value);
           if (!isNaN(numValue)) {
             if (numValue < 1) {
-              new import_obsidian6.Notice(t("MAX_INTERVAL_MIN_WARNING"));
+              new import_obsidian7.Notice(t("MAX_INTERVAL_MIN_WARNING"));
               text.setValue(
                 this.plugin.data.settings.maximumInterval.toString()
               );
@@ -26972,7 +27035,7 @@ var SRSettingTab = class extends import_obsidian6.PluginSettingTab {
             this.plugin.data.settings.maximumInterval = numValue;
             await this.plugin.savePluginData();
           } else {
-            new import_obsidian6.Notice(t("VALID_NUMBER_WARNING"));
+            new import_obsidian7.Notice(t("VALID_NUMBER_WARNING"));
           }
         });
       })
@@ -26983,7 +27046,7 @@ var SRSettingTab = class extends import_obsidian6.PluginSettingTab {
         this.display();
       });
     });
-    new import_obsidian6.Setting(containerEl).setName(t("MAX_LINK_CONTRIB")).setDesc(t("MAX_LINK_CONTRIB_DESC")).addSlider(
+    new import_obsidian7.Setting(containerEl).setName(t("MAX_LINK_CONTRIB")).setDesc(t("MAX_LINK_CONTRIB_DESC")).addSlider(
       (slider) => slider.setLimits(0, 100, 1).setValue(this.plugin.data.settings.maxLinkFactor * 100).setDynamicTooltip().onChange(async (value) => {
         this.plugin.data.settings.maxLinkFactor = value / 100;
         await this.plugin.savePluginData();
@@ -26996,7 +27059,7 @@ var SRSettingTab = class extends import_obsidian6.PluginSettingTab {
       });
     });
     containerEl.createEl("h3", { text: t("GROUP_DATA_STORAGE") });
-    new import_obsidian6.Setting(containerEl).setName(t("GROUP_DATA_STORAGE")).setDesc(t("GROUP_DATA_STORAGE_DESC")).addDropdown(
+    new import_obsidian7.Setting(containerEl).setName(t("GROUP_DATA_STORAGE")).setDesc(t("GROUP_DATA_STORAGE_DESC")).addDropdown(
       (dropdown) => dropdown.addOptions({
         NOTES: t("STORE_IN_NOTES")
       }).setValue(this.plugin.data.settings.dataStore).onChange(async (value) => {
@@ -27004,7 +27067,7 @@ var SRSettingTab = class extends import_obsidian6.PluginSettingTab {
         await this.plugin.savePluginData();
       })
     );
-    new import_obsidian6.Setting(containerEl).setName(t("INLINE_SCHEDULING_COMMENTS")).setDesc(t("INLINE_SCHEDULING_COMMENTS_DESC")).addToggle(
+    new import_obsidian7.Setting(containerEl).setName(t("INLINE_SCHEDULING_COMMENTS")).setDesc(t("INLINE_SCHEDULING_COMMENTS_DESC")).addToggle(
       (toggle) => toggle.setValue(this.plugin.data.settings.cardCommentOnSameLine).onChange(async (value) => {
         this.plugin.data.settings.cardCommentOnSameLine = value;
         await this.plugin.savePluginData();
@@ -27032,13 +27095,13 @@ var SRSettingTab = class extends import_obsidian6.PluginSettingTab {
       })
     );
     containerEl.createEl("h3", { text: `${t("LOGGING")}` });
-    new import_obsidian6.Setting(containerEl).setName(t("DISPLAY_SCHEDULING_DEBUG_INFO")).addToggle(
+    new import_obsidian7.Setting(containerEl).setName(t("DISPLAY_SCHEDULING_DEBUG_INFO")).addToggle(
       (toggle) => toggle.setValue(this.plugin.data.settings.showSchedulingDebugMessages).onChange(async (value) => {
         this.plugin.data.settings.showSchedulingDebugMessages = value;
         await this.plugin.savePluginData();
       })
     );
-    new import_obsidian6.Setting(containerEl).setName(t("DISPLAY_PARSER_DEBUG_INFO")).addToggle(
+    new import_obsidian7.Setting(containerEl).setName(t("DISPLAY_PARSER_DEBUG_INFO")).addToggle(
       (toggle) => toggle.setValue(this.plugin.data.settings.showParserDebugMessages).onChange(async (value) => {
         this.plugin.data.settings.showParserDebugMessages = value;
         setDebugParser(this.plugin.data.settings.showParserDebugMessages);
@@ -27128,14 +27191,14 @@ var OsrSidebar = class {
 };
 
 // src/gui/sr-modal.tsx
-var import_obsidian10 = require("obsidian");
+var import_obsidian11 = require("obsidian");
 
 // src/gui/card-ui.tsx
 var import_moment4 = __toESM(require_moment());
-var import_obsidian8 = require("obsidian");
+var import_obsidian9 = require("obsidian");
 
 // src/utils/renderers.ts
-var import_obsidian7 = require("obsidian");
+var import_obsidian8 = require("obsidian");
 var RenderMarkdownWrapper = class {
   constructor(app, plugin, notePath) {
     this.app = app;
@@ -27153,12 +27216,12 @@ var RenderMarkdownWrapper = class {
       el.setAttribute("dir", "rtl");
     } else
       el = containerEl;
-    import_obsidian7.MarkdownRenderer.render(this.app, markdownString, el, this.notePath, this.plugin);
+    import_obsidian8.MarkdownRenderer.render(this.app, markdownString, el, this.notePath, this.plugin);
     el.findAll(".internal-embed").forEach((el2) => {
       const link2 = this.parseLink(el2.getAttribute("src"));
       if (!link2.target) {
         el2.innerText = link2.text;
-      } else if (link2.target instanceof import_obsidian7.TFile) {
+      } else if (link2.target instanceof import_obsidian8.TFile) {
         if (link2.target.extension !== "md") {
           this.embedMediaFile(el2, link2.target);
         } else {
@@ -27416,7 +27479,7 @@ var CardUI = class {
     const generatedFromStr = t("CARD_GENERATED_FROM", {
       notePath: this._currentQuestion.note.filePath
     });
-    new import_obsidian8.Notice(currentEaseStr + "\n" + currentIntervalStr + "\n" + generatedFromStr);
+    new import_obsidian9.Notice(currentEaseStr + "\n" + currentIntervalStr + "\n" + generatedFromStr);
   }
   get _currentCard() {
     return this.reviewSequencer.currentCard;
@@ -27526,7 +27589,7 @@ var CardUI = class {
   _createBackButton() {
     this.backButton = this.parentEl.createDiv();
     this.backButton.addClasses(["sr-back-button", "sr-is-hidden"]);
-    (0, import_obsidian8.setIcon)(this.backButton, "arrow-left");
+    (0, import_obsidian9.setIcon)(this.backButton, "arrow-left");
     this.backButton.setAttribute("aria-label", t("BACK"));
     this.backButton.addEventListener("click", () => {
       this.backClickHandler();
@@ -27571,7 +27634,7 @@ var CardUI = class {
   _createEditButton() {
     this.editButton = this.controls.createEl("button");
     this.editButton.addClasses(["sr-button", "sr-edit-button"]);
-    (0, import_obsidian8.setIcon)(this.editButton, "edit");
+    (0, import_obsidian9.setIcon)(this.editButton, "edit");
     this.editButton.setAttribute("aria-label", t("EDIT_CARD"));
     this.editButton.addEventListener("click", async () => {
       this.editClickHandler();
@@ -27580,7 +27643,7 @@ var CardUI = class {
   _createResetButton() {
     this.resetButton = this.controls.createEl("button");
     this.resetButton.addClasses(["sr-button", "sr-reset-button"]);
-    (0, import_obsidian8.setIcon)(this.resetButton, "refresh-cw");
+    (0, import_obsidian9.setIcon)(this.resetButton, "refresh-cw");
     this.resetButton.setAttribute("aria-label", t("RESET_CARD_PROGRESS"));
     this.resetButton.addEventListener("click", () => {
       this._processReview(3 /* Reset */);
@@ -27589,7 +27652,7 @@ var CardUI = class {
   _createCardInfoButton() {
     this.infoButton = this.controls.createEl("button");
     this.infoButton.addClasses(["sr-button", "sr-info-button"]);
-    (0, import_obsidian8.setIcon)(this.infoButton, "info");
+    (0, import_obsidian9.setIcon)(this.infoButton, "info");
     this.infoButton.setAttribute("aria-label", "View Card Info");
     this.infoButton.addEventListener("click", async () => {
       this._displayCurrentCardInfoNotice();
@@ -27598,7 +27661,7 @@ var CardUI = class {
   _createSkipButton() {
     this.skipButton = this.controls.createEl("button");
     this.skipButton.addClasses(["sr-button", "sr-skip-button"]);
-    (0, import_obsidian8.setIcon)(this.skipButton, "chevrons-right");
+    (0, import_obsidian9.setIcon)(this.skipButton, "chevrons-right");
     this.skipButton.setAttribute("aria-label", t("SKIP"));
     this.skipButton.addEventListener("click", () => {
       this._skipCurrentCard();
@@ -27671,7 +27734,7 @@ var CardUI = class {
     );
     const interval = schedule.interval;
     if (this.settings.showIntervalInReviewButtons) {
-      if (import_obsidian8.Platform.isMobile) {
+      if (import_obsidian9.Platform.isMobile) {
         button.setText(textInterval(interval, true));
       } else {
         button.setText(`${buttonName} - ${textInterval(interval, false)}`);
@@ -27703,6 +27766,7 @@ var CardUI = class {
 
 // src/gui/deck-ui.tsx
 var import_vhtml3 = __toESM(require_vhtml());
+var import_moment5 = __toESM(require_moment());
 var DeckUI = class {
   constructor(plugin, settings, reviewSequencer, contentEl, startReviewOfDeck) {
     this.plugin = plugin;
@@ -27732,8 +27796,16 @@ var DeckUI = class {
   /**
    * Shows the DeckListView & rerenders dynamic elements
    */
-  show() {
+  async show() {
     this.mode = 0 /* Deck */;
+    globalDateProvider.setSimulatedDate(null);
+    await this.reviewSequencer.reloadCardsForDate((0, import_moment5.default)());
+    await this.updateDisplay();
+  }
+  /**
+   * Updates the display without resetting the date
+   */
+  async updateDisplay() {
     this._createHeaderStats();
     this.content.empty();
     for (const deck of this.reviewSequencer.originalDeckTree.subdecks) {
@@ -27761,6 +27833,30 @@ var DeckUI = class {
   _createHeaderStats() {
     const statistics = this.reviewSequencer.getDeckStats(TopicPath.emptyPath);
     this.stats.empty();
+    const dateSimContainer = this.stats.createDiv();
+    dateSimContainer.addClass("sr-date-sim-container");
+    const dateInput = dateSimContainer.createEl("input");
+    dateInput.type = "date";
+    dateInput.value = globalDateProvider.today.format("YYYY-MM-DD");
+    dateInput.addClass("sr-date-sim-input");
+    const resetButton = dateSimContainer.createEl("button");
+    resetButton.setText("Reset Date");
+    resetButton.addClass("sr-date-sim-reset");
+    dateInput.addEventListener("change", async (e2) => {
+      const target = e2.target;
+      const date = (0, import_moment5.default)(target.value, "YYYY-MM-DD");
+      if (date.isValid()) {
+        globalDateProvider.setSimulatedDate(date);
+        await this.reviewSequencer.reloadCardsForDate(date);
+        await this.updateDisplay();
+      }
+    });
+    resetButton.addEventListener("click", async () => {
+      globalDateProvider.setSimulatedDate(null);
+      dateInput.value = (0, import_moment5.default)().format("YYYY-MM-DD");
+      await this.reviewSequencer.reloadCardsForDate((0, import_moment5.default)());
+      await this.updateDisplay();
+    });
     this._createHeaderStatsContainer(t("DUE_CARDS"), statistics.dueCount, "sr-bg-green");
     this._createHeaderStatsContainer(t("NEW_CARDS"), statistics.newCount, "sr-bg-blue");
     this._createHeaderStatsContainer(t("TOTAL_CARDS"), statistics.totalCount, "sr-bg-red");
@@ -27852,8 +27948,8 @@ var DeckUI = class {
 };
 
 // src/gui/edit-modal.tsx
-var import_obsidian9 = require("obsidian");
-var FlashcardEditModal = class extends import_obsidian9.Modal {
+var import_obsidian10 = require("obsidian");
+var FlashcardEditModal = class extends import_obsidian10.Modal {
   constructor(app, existingText, textDirection) {
     super(app);
     this.didSaveChanges = false;
@@ -27950,7 +28046,7 @@ var FlashcardEditModal = class extends import_obsidian9.Modal {
 };
 
 // src/gui/sr-modal.tsx
-var FlashcardModal = class extends import_obsidian10.Modal {
+var FlashcardModal = class extends import_obsidian11.Modal {
   constructor(app, plugin, settings, reviewSequencer, reviewMode) {
     super(app);
     this.plugin = plugin;
@@ -28028,8 +28124,8 @@ var FlashcardModal = class extends import_obsidian10.Modal {
 };
 
 // src/gui/sr-tab-view.tsx
-var import_obsidian11 = require("obsidian");
-var SRTabView = class extends import_obsidian11.ItemView {
+var import_obsidian12 = require("obsidian");
+var SRTabView = class extends import_obsidian12.ItemView {
   // Counter for catching the first inevitable error but the letting the other through
   constructor(leaf, plugin, loadReviewSequencerData) {
     super(leaf);
@@ -28263,9 +28359,9 @@ var TabViewManager = class {
 };
 
 // src/icons/app-icon.ts
-var import_obsidian12 = require("obsidian");
+var import_obsidian13 = require("obsidian");
 function appIcon() {
-  (0, import_obsidian12.addIcon)(
+  (0, import_obsidian13.addIcon)(
     "SpacedRepIcon",
     `<path fill="currentColor" stroke="currentColor" d="M 88.960938 17.257812 L 47.457031 17.257812 C 45.679688 17.257812 44.230469 18.703125 44.230469 20.484375 L 44.230469 86.558594 C 44.230469 88.335938 45.679688 89.785156 47.457031 89.785156 L 88.960938 89.785156 C 90.738281 89.785156 92.1875 88.335938 92.1875 86.558594 L 92.1875 20.484375 C 92.1875 18.703125 90.738281 17.257812 88.960938 17.257812 Z M 88.28125 85.878906 L 48.136719 85.878906 L 48.136719 21.164062 L 88.28125 21.164062 Z M 88.28125 85.878906 "/>
         <path fill="currentColor" stroke="currentColor"  d="M 88.960938 9.445312 L 61.667969 9.445312 C 59.925781 3.816406 54.011719 0.515625 48.269531 2.054688 L 8.183594 12.796875 C 2.304688 14.371094 -1.199219 20.4375 0.378906 26.316406 L 17.476562 90.140625 C 18.796875 95.066406 23.269531 98.324219 28.144531 98.324219 C 29.085938 98.324219 30.046875 98.199219 31 97.945312 L 40.765625 95.328125 C 42.625 96.75 44.941406 97.597656 47.457031 97.597656 L 88.960938 97.597656 C 95.046875 97.597656 100 92.644531 100 86.558594 L 100 20.484375 C 100 14.398438 95.046875 9.445312 88.960938 9.445312 Z M 29.988281 94.171875 C 26.1875 95.191406 22.269531 92.925781 21.25 89.128906 L 4.152344 25.304688 C 3.132812 21.507812 5.394531 17.585938 9.195312 16.570312 L 49.28125 5.828125 C 52.578125 4.945312 55.960938 6.53125 57.464844 9.445312 L 47.457031 9.445312 C 41.371094 9.445312 36.417969 14.398438 36.417969 20.484375 L 36.417969 86.558594 C 36.417969 88.558594 36.957031 90.433594 37.890625 92.054688 Z M 96.09375 86.558594 C 96.09375 90.492188 92.894531 93.691406 88.960938 93.691406 L 47.457031 93.691406 C 43.523438 93.691406 40.324219 90.492188 40.324219 86.558594 L 40.324219 20.484375 C 40.324219 16.550781 43.523438 13.351562 47.457031 13.351562 L 88.960938 13.351562 C 92.894531 13.351562 96.09375 16.550781 96.09375 20.484375 Z M 96.09375 86.558594 "/>
@@ -28275,11 +28371,11 @@ function appIcon() {
 }
 
 // src/next-note-review-handler.ts
-var import_obsidian14 = require("obsidian");
+var import_obsidian15 = require("obsidian");
 
 // src/gui/review-deck-selection-modal.tsx
-var import_obsidian13 = require("obsidian");
-var ReviewDeckSelectionModal = class extends import_obsidian13.FuzzySuggestModal {
+var import_obsidian14 = require("obsidian");
+var ReviewDeckSelectionModal = class extends import_obsidian14.FuzzySuggestModal {
   constructor(app, deckKeys) {
     super(app);
     this.deckKeys = [];
@@ -28317,7 +28413,7 @@ var NextNoteReviewHandler = class {
         if (reviewDeckKeys.length > 0)
           this._lastSelectedReviewDeck = reviewDeckKeys[0];
         else {
-          new import_obsidian14.Notice(t("ALL_CAUGHT_UP"));
+          new import_obsidian15.Notice(t("ALL_CAUGHT_UP"));
           return;
         }
       }
@@ -28336,7 +28432,7 @@ var NextNoteReviewHandler = class {
   }
   async reviewNextNote(deckKey) {
     if (!this._noteReviewQueue.reviewDeckNameList.contains(deckKey)) {
-      new import_obsidian14.Notice(t("NO_DECK_EXISTS", { deckName: deckKey }));
+      new import_obsidian15.Notice(t("NO_DECK_EXISTS", { deckName: deckKey }));
       return;
     }
     this._lastSelectedReviewDeck = deckKey;
@@ -28345,7 +28441,7 @@ var NextNoteReviewHandler = class {
     if (notefile) {
       await this.openNote(deckKey, notefile.tfile);
     } else {
-      new import_obsidian14.Notice(t("ALL_CAUGHT_UP"));
+      new import_obsidian15.Notice(t("ALL_CAUGHT_UP"));
     }
   }
   async openNote(deckName, file) {
@@ -28523,7 +28619,7 @@ var QuestionPostponementList = class {
 };
 
 // src/main.ts
-var SRPlugin = class extends import_obsidian15.Plugin {
+var SRPlugin = class extends import_obsidian16.Plugin {
   constructor() {
     super(...arguments);
     this.ribbonIcon = null;
@@ -28578,7 +28674,7 @@ var SRPlugin = class extends import_obsidian15.Plugin {
   showFileMenuItems(status) {
     if (this.fileMenuHandler === void 0) {
       this.fileMenuHandler = (menu, fileish) => {
-        if (fileish instanceof import_obsidian15.TFile && fileish.extension === "md") {
+        if (fileish instanceof import_obsidian16.TFile && fileish.extension === "md") {
           menu.addItem((item) => {
             item.setTitle(
               t("REVIEW_DIFFICULTY_FILE_MENU", {
@@ -28755,7 +28851,8 @@ var SRPlugin = class extends import_obsidian15.Plugin {
       this.data.settings,
       SrsAlgorithm.getInstance(),
       this.osrAppCore.questionPostponementList,
-      this.osrAppCore.dueDateFlashcardHistogram
+      this.osrAppCore.dueDateFlashcardHistogram,
+      this
     );
     reviewSequencer.setDeckTree(fullDeckTree, remainingDeckTree);
     return { reviewSequencer, mode: reviewMode };
@@ -28809,7 +28906,8 @@ var SRPlugin = class extends import_obsidian15.Plugin {
         this.data.settings,
         SrsAlgorithm.getInstance(),
         this.osrAppCore.questionPostponementList,
-        this.osrAppCore.dueDateFlashcardHistogram
+        this.osrAppCore.dueDateFlashcardHistogram,
+        this
       );
       reviewSequencer.setDeckTree(fullDeckTree, remainingDeckTree);
       const modal = new FlashcardModal(
@@ -28888,16 +28986,16 @@ var SRPlugin = class extends import_obsidian15.Plugin {
   async saveNoteReviewResponse(note, response) {
     const noteSrTFile = this.createSrTFile(note);
     if (SettingsUtil.isPathInNoteIgnoreFolder(this.data.settings, note.path)) {
-      new import_obsidian15.Notice(t("NOTE_IN_IGNORED_FOLDER"));
+      new import_obsidian16.Notice(t("NOTE_IN_IGNORED_FOLDER"));
       return;
     }
     const tags = noteSrTFile.getAllTagsFromCache();
     if (!SettingsUtil.isAnyTagANoteReviewTag(this.data.settings, tags)) {
-      new import_obsidian15.Notice(t("PLEASE_TAG_NOTE"));
+      new import_obsidian16.Notice(t("PLEASE_TAG_NOTE"));
       return;
     }
     await this.osrAppCore.saveNoteReviewResponse(noteSrTFile, response, this.data.settings);
-    new import_obsidian15.Notice(t("RESPONSE_RECEIVED"));
+    new import_obsidian16.Notice(t("RESPONSE_RECEIVED"));
     if (this.data.settings.autoNextNote) {
       this.nextNoteReviewHandler.autoReviewNextNote();
     }

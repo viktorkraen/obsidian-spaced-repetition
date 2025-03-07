@@ -1,5 +1,5 @@
 import { Moment } from "moment";
-import { App } from "obsidian";
+import { App, TFile } from "obsidian";
 
 import { RepItemScheduleInfo } from "src/algorithms/base/rep-item-schedule-info";
 import { RepItemScheduleInfoOsr } from "src/algorithms/osr/rep-item-schedule-info-osr";
@@ -57,7 +57,10 @@ export class StoreInNotes implements IDataStore {
     }
 
     async questionWriteSchedule(question: Question): Promise<void> {
-        await this.questionWrite(question);
+        const fileText: string = await question.note.file.read();
+        const newText: string = question.updateQuestionWithinNoteTextWithSchedule(fileText, this.settings);
+        await question.note.file.write(newText);
+        question.hasChanged = false;
     }
 
     async questionWrite(question: Question): Promise<void> {
@@ -66,5 +69,25 @@ export class StoreInNotes implements IDataStore {
         const newText: string = question.updateQuestionWithinNoteText(fileText, this.settings);
         await question.note.file.write(newText);
         question.hasChanged = false;
+    }
+
+    async getSettings(): Promise<SRSettings> {
+        return this.settings;
+    }
+
+    async getNoteText(topicPath: string): Promise<string> {
+        const file = this.app.vault.getAbstractFileByPath(topicPath);
+        if (!file || !(file instanceof TFile)) {
+            throw new Error(`File not found or not a file: ${topicPath}`);
+        }
+        return await this.app.vault.read(file);
+    }
+
+    async writeNoteText(topicPath: string, newText: string): Promise<void> {
+        const file = this.app.vault.getAbstractFileByPath(topicPath);
+        if (!file || !(file instanceof TFile)) {
+            throw new Error(`File not found or not a file: ${topicPath}`);
+        }
+        await this.app.vault.modify(file, newText);
     }
 }

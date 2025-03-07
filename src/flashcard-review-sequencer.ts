@@ -4,7 +4,7 @@ import { ReviewResponse } from "src/algorithms/base/repetition-item";
 import { Card } from "src/card";
 import { TICKS_PER_DAY } from "src/constants";
 import { DataStore } from "src/data-stores/base/data-store";
-import { CardListType, Deck } from "src/deck";
+import { CardListType, Deck, DeckTreeFilter } from "src/deck";
 import { IDeckTreeIterator } from "src/deck-tree-iterator";
 import { DueDateHistogram } from "src/due-date-histogram";
 import { Note } from "src/note";
@@ -13,6 +13,8 @@ import { IQuestionPostponementList } from "src/question-postponement-list";
 import { SRSettings } from "src/settings";
 import { TopicPath } from "src/topic-path";
 import { globalDateProvider } from "src/utils/dates";
+import { Moment } from "moment";
+import type SRPlugin from "src/main";
 
 export interface IFlashcardReviewSequencer {
     get hasCurrentCard(): boolean;
@@ -29,6 +31,7 @@ export interface IFlashcardReviewSequencer {
     determineCardSchedule(response: ReviewResponse, card: Card): RepItemScheduleInfo;
     processReview(response: ReviewResponse): Promise<void>;
     updateCurrentQuestionText(text: string): Promise<void>;
+    reloadCardsForDate(date: Moment): Promise<void>;
 }
 
 export class DeckStats {
@@ -61,6 +64,7 @@ export class FlashcardReviewSequencer implements IFlashcardReviewSequencer {
     private srsAlgorithm: ISrsAlgorithm;
     private questionPostponementList: IQuestionPostponementList;
     private dueDateFlashcardHistogram: DueDateHistogram;
+    private plugin: SRPlugin;
 
     constructor(
         reviewMode: FlashcardReviewMode,
@@ -69,6 +73,7 @@ export class FlashcardReviewSequencer implements IFlashcardReviewSequencer {
         srsAlgorithm: ISrsAlgorithm,
         questionPostponementList: IQuestionPostponementList,
         dueDateFlashcardHistogram: DueDateHistogram,
+        plugin: SRPlugin,
     ) {
         this.reviewMode = reviewMode;
         this.cardSequencer = cardSequencer;
@@ -76,6 +81,7 @@ export class FlashcardReviewSequencer implements IFlashcardReviewSequencer {
         this.srsAlgorithm = srsAlgorithm;
         this.questionPostponementList = questionPostponementList;
         this.dueDateFlashcardHistogram = dueDateFlashcardHistogram;
+        this.plugin = plugin;
     }
 
     get hasCurrentCard(): boolean {
@@ -235,5 +241,26 @@ export class FlashcardReviewSequencer implements IFlashcardReviewSequencer {
         q.actualQuestion = text;
 
         await DataStore.getInstance().questionWrite(this.currentQuestion);
+    }
+
+    async reloadCardsForDate(date: Moment): Promise<void> {
+        // Зберігаємо поточну колоду
+        const currentDeckPath = this.currentDeck?.getTopicPath() || TopicPath.emptyPath;
+        
+        // Клонуємо дерева колод
+        const originalDeckTree = this._originalDeckTree.clone();
+        const remainingDeckTree = DeckTreeFilter.filterForRemainingCards(
+            this.questionPostponementList,
+            originalDeckTree,
+            this.reviewMode
+        );
+        
+        // Оновлюємо дерево
+        this.setDeckTree(originalDeckTree, remainingDeckTree);
+        
+        // Відновлюємо поточну колоду
+        if (currentDeckPath) {
+            this.setCurrentDeck(currentDeckPath);
+        }
     }
 }

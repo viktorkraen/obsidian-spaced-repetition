@@ -1,4 +1,6 @@
 import moment from "moment";
+import { Plugin } from "obsidian";
+import type SRPlugin from "src/main";
 
 import { ReviewResponse } from "src/algorithms/base/repetition-item";
 import { SrsAlgorithm } from "src/algorithms/base/srs-algorithm";
@@ -39,6 +41,13 @@ const clozeQuestion1Card1: RegExp = /This single.+\.\.\..+turns into 3 separate 
 const clozeQuestion1Card2: RegExp = /This single question turns into.+\.\.\..+cards/;
 const clozeQuestion1Card3: RegExp = /This single question turns into 3 separate.+\.\.\./;
 
+// Додамо mock об'єкт на початку файлу
+const mockPlugin = {
+    app: {},
+    manifest: {},
+    data: { settings: {} }
+} as unknown as SRPlugin;
+
 class TestContext {
     settings: SRSettings;
     reviewMode: FlashcardReviewMode;
@@ -50,6 +59,7 @@ class TestContext {
     file: UnitTestSRFile;
     originalText: string;
     fakeFilePath: string;
+    srsAlgorithm: SrsAlgorithm;
 
     constructor(init?: Partial<TestContext>) {
         Object.assign(this, init);
@@ -66,6 +76,7 @@ class TestContext {
             SrsAlgorithm.getInstance(),
             this.questionPostponementList,
             this.dueDateFlashcardHistogram,
+            mockPlugin
         );
         setupStaticDateProviderOriginDatePlusDays(daysAfterOrigin);
 
@@ -119,6 +130,7 @@ class TestContext {
             SrsAlgorithm.getInstance(),
             cardPostponementList,
             dueDateFlashcardHistogram,
+            mockPlugin
         );
         const file: UnitTestSRFile = new UnitTestSRFile(text, fakeFilePath);
 
@@ -132,6 +144,7 @@ class TestContext {
             file,
             originalText: text,
             fakeFilePath,
+            srsAlgorithm: SrsAlgorithm.getInstance(),
         });
         return result;
     }

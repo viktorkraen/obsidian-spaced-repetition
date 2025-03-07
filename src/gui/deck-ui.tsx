@@ -1,5 +1,6 @@
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import h from "vhtml";
+import moment from "moment";
 
 import { COLLAPSE_ICON } from "src/constants";
 import { Deck } from "src/deck";
@@ -12,6 +13,7 @@ import { t } from "src/lang/helpers";
 import type SRPlugin from "src/main";
 import { SRSettings } from "src/settings";
 import { TopicPath } from "src/topic-path";
+import { globalDateProvider, SimulatedDateProvider } from "src/utils/dates";
 
 export class DeckUI {
     public plugin: SRPlugin;
@@ -71,9 +73,20 @@ export class DeckUI {
     /**
      * Shows the DeckListView & rerenders dynamic elements
      */
-    show(): void {
+    async show(): Promise<void> {
         this.mode = FlashcardMode.Deck;
 
+        // Скидаємо дату до поточної тільки при першому показі
+        (globalDateProvider as SimulatedDateProvider).setSimulatedDate(null);
+        await this.reviewSequencer.reloadCardsForDate(moment());
+        
+        await this.updateDisplay();
+    }
+
+    /**
+     * Updates the display without resetting the date
+     */
+    private async updateDisplay(): Promise<void> {
         // Redraw in case the stats have changed
         this._createHeaderStats();
 
@@ -108,6 +121,42 @@ export class DeckUI {
     private _createHeaderStats() {
         const statistics: DeckStats = this.reviewSequencer.getDeckStats(TopicPath.emptyPath);
         this.stats.empty();
+
+        // Add date simulation component
+        const dateSimContainer = this.stats.createDiv();
+        dateSimContainer.addClass("sr-date-sim-container");
+        
+        const dateInput = dateSimContainer.createEl("input");
+        dateInput.type = "date";
+        // Встановлюємо значення на основі поточної симульованої дати
+        dateInput.value = (globalDateProvider as SimulatedDateProvider).today.format("YYYY-MM-DD");
+        dateInput.addClass("sr-date-sim-input");
+        
+        const resetButton = dateSimContainer.createEl("button");
+        resetButton.setText("Reset Date");
+        resetButton.addClass("sr-date-sim-reset");
+        
+        // Add event listeners
+        dateInput.addEventListener("change", async (e) => {
+            const target = e.target as HTMLInputElement;
+            const date = moment(target.value, "YYYY-MM-DD");
+            if (date.isValid()) {
+                (globalDateProvider as SimulatedDateProvider).setSimulatedDate(date);
+                // Оновлюємо дані після зміни дати
+                await this.reviewSequencer.reloadCardsForDate(date);
+                // Оновлюємо відображення колод без скидання дати
+                await this.updateDisplay();
+            }
+        });
+        
+        resetButton.addEventListener("click", async () => {
+            (globalDateProvider as SimulatedDateProvider).setSimulatedDate(null);
+            dateInput.value = moment().format("YYYY-MM-DD");
+            // Оновлюємо дані після скидання дати
+            await this.reviewSequencer.reloadCardsForDate(moment());
+            // Оновлюємо відображення колод без скидання дати
+            await this.updateDisplay();
+        });
 
         this._createHeaderStatsContainer(t("DUE_CARDS"), statistics.dueCount, "sr-bg-green");
         this._createHeaderStatsContainer(t("NEW_CARDS"), statistics.newCount, "sr-bg-blue");

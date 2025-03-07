@@ -94,6 +94,43 @@ export class LiveDateProvider implements IDateProvider {
     }
 }
 
+export class SimulatedDateProvider implements IDateProvider {
+    private simulatedDate: Moment | null = null;
+
+    get now(): Moment {
+        return this.simulatedDate ? this.simulatedDate.clone() : moment();
+    }
+
+    get today(): Moment {
+        return this.simulatedDate ? this.simulatedDate.clone().startOf("day") : moment().startOf("day");
+    }
+
+    setSimulatedDate(date: Moment | null): void {
+        this.simulatedDate = date;
+    }
+}
+
+export let globalDateProvider: IDateProvider = new SimulatedDateProvider();
+
+const originDate: string = "2023-09-06";
+
+export function setupStaticDateProvider(dateStr: string) {
+    globalDateProvider = StaticDateProvider.fromDateStr(dateStr);
+}
+
+function getOriginDateAsMoment(): Moment {
+    return DateUtil.dateStrToMoment(originDate);
+}
+
+export function setupStaticDateProviderOriginDatePlusDays(days: number) {
+    const simulatedDate: Moment = getOriginDateAsMoment().add(days, "d");
+    globalDateProvider = new StaticDateProvider(simulatedDate);
+}
+
+export function setupStaticDateProvider20230906() {
+    setupStaticDateProvider(originDate);
+}
+
 export class StaticDateProvider implements IDateProvider {
     private moment: Moment;
 
@@ -118,25 +155,4 @@ export class DateUtil {
     static dateStrToMoment(str: string): Moment {
         return moment(str, ALLOWED_DATE_FORMATS);
     }
-}
-
-export let globalDateProvider: IDateProvider = new LiveDateProvider();
-
-const originDate: string = "2023-09-06";
-
-export function setupStaticDateProvider(dateStr: string) {
-    globalDateProvider = StaticDateProvider.fromDateStr(dateStr);
-}
-
-function getOriginDateAsMoment(): Moment {
-    return DateUtil.dateStrToMoment(originDate);
-}
-
-export function setupStaticDateProviderOriginDatePlusDays(days: number) {
-    const simulatedDate: Moment = getOriginDateAsMoment().add(days, "d");
-    globalDateProvider = new StaticDateProvider(simulatedDate);
-}
-
-export function setupStaticDateProvider20230906() {
-    setupStaticDateProvider(originDate);
 }

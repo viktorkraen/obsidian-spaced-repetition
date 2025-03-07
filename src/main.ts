@@ -337,16 +337,15 @@ export default class SRPlugin extends Plugin {
         reviewMode: FlashcardReviewMode,
     ): { reviewSequencer: IFlashcardReviewSequencer; mode: FlashcardReviewMode } {
         const deckIterator: IDeckTreeIterator = SRPlugin.createDeckTreeIterator(this.data.settings);
-
-        const reviewSequencer: IFlashcardReviewSequencer = new FlashcardReviewSequencer(
+        const reviewSequencer: FlashcardReviewSequencer = new FlashcardReviewSequencer(
             reviewMode,
             deckIterator,
             this.data.settings,
             SrsAlgorithm.getInstance(),
             this.osrAppCore.questionPostponementList,
             this.osrAppCore.dueDateFlashcardHistogram,
+            this
         );
-
         reviewSequencer.setDeckTree(fullDeckTree, remainingDeckTree);
         return { reviewSequencer, mode: reviewMode };
     }
@@ -420,7 +419,8 @@ export default class SRPlugin extends Plugin {
                 this.data.settings,
                 SrsAlgorithm.getInstance(),
                 this.osrAppCore.questionPostponementList,
-                this.osrAppCore.dueDateFlashcardHistogram
+                this.osrAppCore.dueDateFlashcardHistogram,
+                this
             );
 
             reviewSequencer.setDeckTree(fullDeckTree, remainingDeckTree);

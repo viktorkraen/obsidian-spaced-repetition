@@ -296,16 +296,31 @@ export class Question {
 
     updateQuestionWithinNoteText(noteText: string, settings: SRSettings): string {
         const originalText: string = this.questionText.original;
-
-        // Get the entire text for the question including:
-        //      1. the topic path (if present),
-        //      2. the question text
-        //      3. the schedule HTML comment (if present)
         const replacementText = this.formatForNote(settings, true); // Skip schedule when editing
-
         let newText = MultiLineTextFinder.findAndReplace(noteText, originalText, replacementText);
         if (newText) {
-            // Don't support changing the textDirection setting
+            this.questionText = QuestionText.create(
+                replacementText,
+                this.questionText.textDirection,
+                settings,
+            );
+        } else {
+            console.error(
+                `updateQuestionText: Text not found: ${originalText.substring(
+                    0,
+                    100,
+                )} in note: ${noteText.substring(0, 100)}`,
+            );
+            newText = noteText;
+        }
+        return newText;
+    }
+
+    updateQuestionWithinNoteTextWithSchedule(noteText: string, settings: SRSettings): string {
+        const originalText: string = this.questionText.original;
+        const replacementText = this.formatForNote(settings, false); // Include schedule for review
+        let newText = MultiLineTextFinder.findAndReplace(noteText, originalText, replacementText);
+        if (newText) {
             this.questionText = QuestionText.create(
                 replacementText,
                 this.questionText.textDirection,
