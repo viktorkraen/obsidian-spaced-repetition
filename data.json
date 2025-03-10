@@ -3,7 +3,8 @@
     "flashcardTags": [
       "#languages/Deutsch-tts-de",
       "#languages/English-tts-en",
-      "#languages/Ukrainian-tts-uk"
+      "#languages/Ukrainian-tts-uk",
+      "#Summaries"
     ],
     "convertFoldersToDecks": false,
     "burySiblingCards": false,
