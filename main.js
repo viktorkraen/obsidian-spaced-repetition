@@ -9049,21 +9049,18 @@ function t(str, params) {
 }
 
 // src/algorithms/osr/note-scheduling.ts
-function osrSchedule(response, originalInterval, ease, delayedBeforeReview, settings, dueDateHistogram) {
+function osrSchedule(response, originalInterval, ease, delayedBeforeReview, settings, dueDateHistogram, isNewCard = false) {
   const delayedBeforeReviewDays = Math.max(0, Math.floor(delayedBeforeReview / TICKS_PER_DAY));
   let interval = originalInterval;
   if (response === 0 /* Easy */) {
     ease += 20;
-    interval = (interval + delayedBeforeReviewDays) * ease / 100;
-    interval *= settings.easyBonus;
+    interval = Math.max(1, Math.round((interval + delayedBeforeReviewDays) * ease / 100));
+    interval = Math.round(interval * settings.easyBonus);
   } else if (response === 1 /* Good */) {
     interval = (interval + delayedBeforeReviewDays / 2) * ease / 100;
   } else if (response === 2 /* Hard */) {
     ease = Math.max(130, ease - 20);
-    interval = Math.max(
-      1,
-      (interval + delayedBeforeReviewDays / 4) * settings.lapsesIntervalChange
-    );
+    interval = Math.max(1, Math.round(originalInterval * 0.5));
   }
   if (settings.loadBalance && dueDateHistogram !== void 0) {
     interval = Math.round(interval);
@@ -9159,17 +9156,20 @@ var _RepItemScheduleInfoOsr = class extends RepItemScheduleInfo {
     }
   }
   formatCardScheduleForHtmlComment() {
-    const dateStr = this.dueDate ? this.formatDueDate() : _RepItemScheduleInfoOsr.dummyDueDateForNewCard;
-    return `!${dateStr},${this.interval},${this.latestEase}`;
+    if (!this.dueDate) {
+      return "New";
+    }
+    return `!${this.formatDueDate()},${this.interval},${this.latestEase}`;
   }
   static get initialInterval() {
     return 1;
   }
   static getDummyScheduleForNewCard(settings) {
-    return _RepItemScheduleInfoOsr.fromDueDateStr(
-      _RepItemScheduleInfoOsr.dummyDueDateForNewCard,
+    return new _RepItemScheduleInfoOsr(
+      null,
       _RepItemScheduleInfoOsr.initialInterval,
-      settings.baseEase
+      settings.baseEase,
+      null
     );
   }
   static fromDueDateStr(dueDateStr, interval, ease, delayedBeforeReviewTicks = null) {
@@ -9239,7 +9239,7 @@ var SrsAlgorithmOsr = class {
       response,
       dueDateNoteHistogram
     );
-    result.dueDate = (0, import_moment2.default)(globalDateProvider.today.add(result.interval, "d"));
+    result.dueDate = (0, import_moment2.default)(globalDateProvider.today).add(result.interval, "days");
     return result;
   }
   noteOnLoadedNote(path2, note, noteEase) {
@@ -9282,14 +9282,10 @@ var SrsAlgorithmOsr = class {
   }
   noteCalcUpdatedSchedule(notePath, noteSchedule, response, dueDateNoteHistogram) {
     const noteScheduleOsr = noteSchedule;
-    const temp = this.calcSchedule(
-      noteScheduleOsr,
-      response,
-      dueDateNoteHistogram
-    );
+    const temp = this.calcSchedule(noteScheduleOsr, response, dueDateNoteHistogram);
     const interval = temp.interval;
     const ease = temp.latestEase;
-    const dueDate = (0, import_moment2.default)(globalDateProvider.today.add(interval, "d"));
+    const dueDate = (0, import_moment2.default)(globalDateProvider.today).add(interval, "days");
     this.noteEaseList.setEaseForPath(notePath, ease);
     return new RepItemScheduleInfoOsr(dueDate, interval, ease);
   }
@@ -9302,7 +9298,11 @@ var SrsAlgorithmOsr = class {
       this.settings,
       dueDateHistogram
     );
-    return new RepItemScheduleInfoOsr(globalDateProvider.today, temp.interval, temp.ease);
+    return new RepItemScheduleInfoOsr(
+      globalDateProvider.today,
+      temp.interval,
+      temp.ease
+    );
   }
   cardGetResetSchedule() {
     const interval = SrsAlgorithmOsr.initialInterval;
@@ -9322,11 +9322,12 @@ var SrsAlgorithmOsr = class {
       initialEase,
       delayBeforeReview,
       this.settings,
-      dueDateFlashcardHistogram
+      dueDateFlashcardHistogram,
+      true
     );
     const interval = schedObj.interval;
     const ease = schedObj.ease;
-    const dueDate = globalDateProvider.today.add(interval, "d");
+    const dueDate = response === 2 /* Hard */ ? null : globalDateProvider.today.add(interval, "d");
     return new RepItemScheduleInfoOsr(dueDate, interval, ease, delayBeforeReview);
   }
   cardCalcUpdatedSchedule(response, cardSchedule, dueDateFlashcardHistogram) {
@@ -9341,7 +9342,7 @@ var SrsAlgorithmOsr = class {
     );
     const interval = schedObj.interval;
     const ease = schedObj.ease;
-    const dueDate = globalDateProvider.today.add(interval, "d");
+    const dueDate = response === 2 /* Hard */ ? cardSchedule.dueDate : (0, import_moment2.default)(globalDateProvider.today).add(interval, "days");
     const delayBeforeReview = 0;
     return new RepItemScheduleInfoOsr(dueDate, interval, ease, delayBeforeReview);
   }
@@ -9704,9 +9705,10 @@ var FlashcardReviewSequencer = class {
     }
   }
   async processReviewReviewMode(response) {
-    if (response != 3 /* Reset */ || this.currentCard.hasSchedule) {
+    if (!(response === 3 /* Reset */ && !this.currentCard.hasSchedule)) {
       const oldSchedule = this.currentCard.scheduleInfo;
-      this.currentCard.scheduleInfo = this.determineCardSchedule(response, this.currentCard);
+      const newSchedule = this.determineCardSchedule(response, this.currentCard);
+      this.currentCard.scheduleInfo = newSchedule;
       await DataStore.getInstance().questionWriteSchedule(this.currentQuestion);
       if (oldSchedule) {
         const today = globalDateProvider.today.valueOf();
@@ -9717,7 +9719,7 @@ var FlashcardReviewSequencer = class {
       }
       this.dueDateFlashcardHistogram.increment(this.currentCard.scheduleInfo.interval);
     }
-    if (response == 3 /* Reset */) {
+    if (response == 3 /* Reset */ || response == 2 /* Hard */ && !this.currentCard.hasSchedule) {
       this.cardSequencer.moveCurrentCardToEndOfList();
       this.cardSequencer.nextCard();
     } else {
@@ -11031,22 +11033,6 @@ var Question = class {
     this.cards.forEach((card) => card.question = this);
   }
   formatForNote(settings, skipSchedule = false) {
-    if (!skipSchedule && this.cards && this.cards.length > 0) {
-      this.cards.forEach((card) => {
-        if (!card.scheduleInfo) {
-          card.scheduleInfo = RepItemScheduleInfoOsr.getDummyScheduleForNewCard(settings);
-        }
-      });
-    } else if (!skipSchedule && this.questionType === 5 /* HeaderBasic */) {
-      const card = new Card({
-        question: this,
-        cardIdx: 0,
-        front: this.questionText.actualQuestion,
-        back: ""
-      });
-      card.scheduleInfo = RepItemScheduleInfoOsr.getDummyScheduleForNewCard(settings);
-      this.setCardList([card]);
-    }
     const resultBase = this.questionText.formatTopicAndQuestion();
     const blockId = this.questionText.obsidianBlockId;
     let result;
@@ -11056,28 +11042,38 @@ var Question = class {
       const headerLine = lines[0];
       const contentLines = lines.slice(1);
       let lastSeparatorIndex = -1;
+      let lastContentIndex = -1;
       for (let i2 = contentLines.length - 1; i2 >= 0; i2--) {
-        if (contentLines[i2].trim() === "-- --") {
+        const line = contentLines[i2].trim();
+        if (line === "-- --") {
           lastSeparatorIndex = i2;
           break;
         }
       }
-      if (lastSeparatorIndex !== -1) {
-        contentLines.splice(lastSeparatorIndex + 1, contentLines.length - lastSeparatorIndex - 1);
-        if (scheduleHtml) {
-          contentLines.splice(lastSeparatorIndex + 1, 0, scheduleHtml);
+      for (let i2 = lastSeparatorIndex - 1; i2 >= 0; i2--) {
+        if (contentLines[i2].trim() !== "") {
+          lastContentIndex = i2;
+          break;
         }
-        result = [headerLine, ...contentLines].join("\n");
+      }
+      if (lastSeparatorIndex !== -1) {
+        const preservedContent = contentLines.slice(0, lastContentIndex + 1);
+        preservedContent.push("");
+        preservedContent.push(contentLines[lastSeparatorIndex]);
+        if (scheduleHtml) {
+          preservedContent.push(scheduleHtml.trim());
+        }
+        result = [headerLine, ...preservedContent].join("\n");
       } else {
         result = resultBase;
         if (scheduleHtml) {
-          result += this.getHtmlCommentSeparator(settings) + scheduleHtml;
+          result += this.getHtmlCommentSeparator(settings) + scheduleHtml.trim();
         }
       }
     } else {
       result = resultBase;
       if (scheduleHtml) {
-        result += this.getHtmlCommentSeparator(settings) + scheduleHtml;
+        result += this.getHtmlCommentSeparator(settings) + scheduleHtml.trim();
       }
     }
     if (blockId) {
@@ -11108,8 +11104,10 @@ var Question = class {
   }
   updateQuestionWithinNoteTextWithSchedule(noteText, settings) {
     const originalText = this.questionText.original;
+    const originalWithoutSchedule = originalText.replace(/<!--SR:.*?-->/g, "").trim();
+    const textWithoutSchedule = noteText.replace(/<!--SR:.*?-->/g, "");
     const replacementText = this.formatForNote(settings, false);
-    let newText = MultiLineTextFinder.findAndReplace(noteText, originalText, replacementText);
+    let newText = MultiLineTextFinder.findAndReplace(textWithoutSchedule, originalWithoutSchedule, replacementText);
     if (newText) {
       this.questionText = QuestionText.create(
         replacementText,
@@ -11118,10 +11116,10 @@ var Question = class {
       );
     } else {
       console.error(
-        `updateQuestionText: Text not found: ${originalText.substring(
+        `updateQuestionText: Text not found: ${originalWithoutSchedule.substring(
           0,
           100
-        )} in note: ${noteText.substring(0, 100)}`
+        )} in note: ${textWithoutSchedule.substring(0, 100)}`
       );
       newText = noteText;
     }
@@ -11574,7 +11572,7 @@ var DEFAULT_SETTINGS = {
   flashcardWidthPercentage: import_obsidian3.Platform.isMobile ? 100 : 40,
   flashcardEasyText: t("EASY"),
   flashcardGoodText: t("GOOD"),
-  flashcardHardText: t("HARD"),
+  flashcardHardText: "\u274C Bad",
   reviewButtonDelay: 1e3,
   openViewInNewTab: false,
   // algorithm
@@ -12129,10 +12127,13 @@ ${fileText}`;
     let result;
     if (card.hasSchedule) {
       const schedule = card.scheduleInfo;
-      const dateStr = schedule.dueDate ? formatDateYYYYMMDD(schedule.dueDate) : RepItemScheduleInfoOsr.dummyDueDateForNewCard;
-      result = `!${dateStr},${schedule.interval},${schedule.latestEase}`;
+      if (!schedule.dueDate) {
+        result = "New";
+      } else {
+        result = `!${formatDateYYYYMMDD(schedule.dueDate)},${schedule.interval},${schedule.latestEase}`;
+      }
     } else {
-      result = `!${RepItemScheduleInfoOsr.dummyDueDateForNewCard},${RepItemScheduleInfoOsr.initialInterval},${this.settings.baseEase}`;
+      result = "New";
     }
     return result;
   }
@@ -27519,11 +27520,9 @@ var CardUI = class {
       await this._playAudioInContent(this.content);
       this.answerButton.addClass("sr-is-hidden");
       this.hardButton.removeClass("sr-is-hidden");
-      this.easyButton.removeClass("sr-is-hidden");
       if (this.reviewMode === 0 /* Cram */) {
         this.response.addClass("is-cram");
         this.hardButton.setText(`${this.settings.flashcardHardText}`);
-        this.easyButton.setText(`${this.settings.flashcardEasyText}`);
       } else {
         this.goodButton.removeClass("sr-is-hidden");
         this._setupEaseButton(
@@ -27536,17 +27535,11 @@ var CardUI = class {
           this.settings.flashcardGoodText,
           1 /* Good */
         );
-        this._setupEaseButton(
-          this.easyButton,
-          this.settings.flashcardEasyText,
-          0 /* Easy */
-        );
       }
     } catch (error) {
       console.error("CardUI: Error showing answer:", error);
       this.answerButton.addClass("sr-is-hidden");
       this.hardButton.removeClass("sr-is-hidden");
-      this.easyButton.removeClass("sr-is-hidden");
       if (this.reviewMode !== 0 /* Cram */) {
         this.goodButton.removeClass("sr-is-hidden");
       }
@@ -27672,13 +27665,11 @@ var CardUI = class {
     this._createShowAnswerButton();
     this._createHardButton();
     this._createGoodButton();
-    this._createEasyButton();
   }
   _resetResponseButtons() {
     this.answerButton.removeClass("sr-is-hidden");
     this.hardButton.addClass("sr-is-hidden");
     this.goodButton.addClass("sr-is-hidden");
-    this.easyButton.addClass("sr-is-hidden");
   }
   _createShowAnswerButton() {
     this.answerButton = this.response.createEl("button");
@@ -27714,34 +27705,18 @@ var CardUI = class {
       this._processReview(1 /* Good */);
     });
   }
-  _createEasyButton() {
-    this.easyButton = this.response.createEl("button");
-    this.easyButton.addClasses([
-      "sr-response-button",
-      "sr-hard-button",
-      "sr-bg-green",
-      "sr-is-hidden"
-    ]);
-    this.easyButton.setText(this.settings.flashcardEasyText);
-    this.easyButton.addEventListener("click", () => {
-      this._processReview(0 /* Easy */);
-    });
-  }
   _setupEaseButton(button, buttonName, reviewResponse) {
-    const schedule = this.reviewSequencer.determineCardSchedule(
-      reviewResponse,
-      this._currentCard
-    );
-    const interval = schedule.interval;
-    if (this.settings.showIntervalInReviewButtons) {
-      if (import_obsidian9.Platform.isMobile) {
-        button.setText(textInterval(interval, true));
-      } else {
-        button.setText(`${buttonName} - ${textInterval(interval, false)}`);
-      }
-    } else {
-      button.setText(buttonName);
+    if (reviewResponse === 2 /* Hard */) {
+      button.setText(`${buttonName} - Again`);
+      return;
     }
+    const schedule = this.reviewSequencer.determineCardSchedule(reviewResponse, this._currentCard);
+    if (!schedule) {
+      button.setText(buttonName);
+      return;
+    }
+    const interval = schedule.interval;
+    button.setText(`${buttonName} - ${interval}d`);
   }
   // Add CSS styles
   _addTTSStyles() {

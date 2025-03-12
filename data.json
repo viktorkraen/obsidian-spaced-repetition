@@ -46,7 +46,7 @@
     "flashcardWidthPercentage": 100,
     "flashcardEasyText": "Easy",
     "flashcardGoodText": "Good",
-    "flashcardHardText": "Hard",
+    "flashcardHardText": "❌ Bad",
     "reviewButtonDelay": 1000,
     "openViewInNewTab": false,
     "algorithm": "SM-2-OSR",

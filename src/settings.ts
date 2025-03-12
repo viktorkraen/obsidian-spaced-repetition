@@ -107,7 +107,7 @@ export const DEFAULT_SETTINGS: SRSettings = {
     flashcardWidthPercentage: Platform.isMobile ? 100 : 40,
     flashcardEasyText: t("EASY"),
     flashcardGoodText: t("GOOD"),
-    flashcardHardText: t("HARD"),
+    flashcardHardText: "❌ Bad",
     reviewButtonDelay: 1000,
     openViewInNewTab: false,
 

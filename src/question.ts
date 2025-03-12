@@ -225,25 +225,6 @@ export class Question {
     }
 
     formatForNote(settings: SRSettings, skipSchedule: boolean = false): string {
-        // Для кожної картки, якщо немає schedule, встановлюємо dummy schedule info
-        if (!skipSchedule && this.cards && this.cards.length > 0) {
-            this.cards.forEach((card) => {
-                if (!card.scheduleInfo) {
-                    card.scheduleInfo = RepItemScheduleInfoOsr.getDummyScheduleForNewCard(settings);
-                }
-            });
-        } else if (!skipSchedule && this.questionType === CardType.HeaderBasic) {
-            // Для HeaderBasic, якщо картки ще не створені, створюємо їх
-            const card = new Card({
-                question: this,
-                cardIdx: 0,
-                front: this.questionText.actualQuestion,
-                back: ""
-            });
-            card.scheduleInfo = RepItemScheduleInfoOsr.getDummyScheduleForNewCard(settings);
-            this.setCardList([card]);
-        }
-
         const resultBase: string = this.questionText.formatTopicAndQuestion();
         const blockId: string = this.questionText.obsidianBlockId;
         
@@ -257,33 +238,52 @@ export class Question {
             const headerLine = lines[0];
             const contentLines = lines.slice(1);
             
-            // Знаходимо останній '-- --' роздільник
+            // Знаходимо останній '-- --' роздільник та всі рядки до нього
             let lastSeparatorIndex = -1;
+            let lastContentIndex = -1;
+            
             for (let i = contentLines.length - 1; i >= 0; i--) {
-                if (contentLines[i].trim() === "-- --") {
+                const line = contentLines[i].trim();
+                if (line === "-- --") {
                     lastSeparatorIndex = i;
                     break;
                 }
             }
             
-            if (lastSeparatorIndex !== -1) {
-                // Видаляємо будь-які існуючі SR коментарі після роздільника
-                contentLines.splice(lastSeparatorIndex + 1, contentLines.length - lastSeparatorIndex - 1);
-                // Додаємо scheduleHtml після останнього роздільника, якщо він є
-                if (scheduleHtml) {
-                    contentLines.splice(lastSeparatorIndex + 1, 0, scheduleHtml);
+            // Знаходимо останній непорожній рядок перед роздільником
+            for (let i = lastSeparatorIndex - 1; i >= 0; i--) {
+                if (contentLines[i].trim() !== "") {
+                    lastContentIndex = i;
+                    break;
                 }
-                result = [headerLine, ...contentLines].join("\n");
+            }
+            
+            if (lastSeparatorIndex !== -1) {
+                // Зберігаємо контент до останнього непорожнього рядка
+                const preservedContent = contentLines.slice(0, lastContentIndex + 1);
+                
+                // Додаємо один порожній рядок перед роздільником
+                preservedContent.push("");
+                
+                // Додаємо роздільник
+                preservedContent.push(contentLines[lastSeparatorIndex]);
+                
+                // Додаємо scheduleHtml після роздільника, якщо він є
+                if (scheduleHtml) {
+                    preservedContent.push(scheduleHtml.trim());
+                }
+                
+                result = [headerLine, ...preservedContent].join("\n");
             } else {
                 result = resultBase;
                 if (scheduleHtml) {
-                    result += this.getHtmlCommentSeparator(settings) + scheduleHtml;
+                    result += this.getHtmlCommentSeparator(settings) + scheduleHtml.trim();
                 }
             }
         } else {
             result = resultBase;
             if (scheduleHtml) {
-                result += this.getHtmlCommentSeparator(settings) + scheduleHtml;
+                result += this.getHtmlCommentSeparator(settings) + scheduleHtml.trim();
             }
         }
 
@@ -318,8 +318,19 @@ export class Question {
 
     updateQuestionWithinNoteTextWithSchedule(noteText: string, settings: SRSettings): string {
         const originalText: string = this.questionText.original;
-        const replacementText = this.formatForNote(settings, false); // Include schedule for review
-        let newText = MultiLineTextFinder.findAndReplace(noteText, originalText, replacementText);
+        
+        // Видаляємо SR-коментар з оригінального тексту
+        const originalWithoutSchedule = originalText.replace(/<!--SR:.*?-->/g, '').trim();
+        
+        // Видаляємо SR-коментар з тексту нотатки
+        const textWithoutSchedule = noteText.replace(/<!--SR:.*?-->/g, '');
+        
+        // Форматуємо текст з новим розкладом
+        const replacementText = this.formatForNote(settings, false);
+        
+        // Замінюємо текст питання на новий, використовуючи версію без SR-коментаря для пошуку
+        let newText = MultiLineTextFinder.findAndReplace(textWithoutSchedule, originalWithoutSchedule, replacementText);
+        
         if (newText) {
             this.questionText = QuestionText.create(
                 replacementText,
@@ -328,13 +339,14 @@ export class Question {
             );
         } else {
             console.error(
-                `updateQuestionText: Text not found: ${originalText.substring(
+                `updateQuestionText: Text not found: ${originalWithoutSchedule.substring(
                     0,
                     100,
-                )} in note: ${noteText.substring(0, 100)}`,
+                )} in note: ${textWithoutSchedule.substring(0, 100)}`,
             );
             newText = noteText;
         }
+        
         return newText;
     }
 

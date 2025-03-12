@@ -45,7 +45,6 @@ export class CardUI {
     public response: HTMLDivElement;
     public hardButton: HTMLButtonElement;
     public goodButton: HTMLButtonElement;
-    public easyButton: HTMLButtonElement;
     public answerButton: HTMLButtonElement;
     public lastPressed: number;
 
@@ -335,16 +334,15 @@ export class CardUI {
         this.resetButton.disabled = false;
 
         try {
-            // Show answer text
             if (this._currentQuestion.questionType !== CardType.Cloze) {
-                const hr: HTMLElement = document.createElement("hr");
+                const hr = document.createElement("hr");
                 hr.addClass("sr-card-divide");
                 this.content.appendChild(hr);
             } else {
                 this.content.empty();
             }
 
-            const wrapper: RenderMarkdownWrapper = new RenderMarkdownWrapper(
+            const wrapper = new RenderMarkdownWrapper(
                 this.app,
                 this.plugin,
                 this._currentNote.filePath,
@@ -354,19 +352,14 @@ export class CardUI {
                 this.content,
                 this._currentQuestion.questionText.textDirection,
             );
-
-            // Автоматично програємо аудіо на зворотній стороні картки
             await this._playAudioInContent(this.content);
 
-            // Show response buttons
             this.answerButton.addClass("sr-is-hidden");
             this.hardButton.removeClass("sr-is-hidden");
-            this.easyButton.removeClass("sr-is-hidden");
 
             if (this.reviewMode === FlashcardReviewMode.Cram) {
                 this.response.addClass("is-cram");
                 this.hardButton.setText(`${this.settings.flashcardHardText}`);
-                this.easyButton.setText(`${this.settings.flashcardEasyText}`);
             } else {
                 this.goodButton.removeClass("sr-is-hidden");
                 this._setupEaseButton(
@@ -379,18 +372,12 @@ export class CardUI {
                     this.settings.flashcardGoodText,
                     ReviewResponse.Good,
                 );
-                this._setupEaseButton(
-                    this.easyButton,
-                    this.settings.flashcardEasyText,
-                    ReviewResponse.Easy,
-                );
             }
         } catch (error) {
             console.error('CardUI: Error showing answer:', error);
             // Make sure buttons are shown even if there's an error
             this.answerButton.addClass("sr-is-hidden");
             this.hardButton.removeClass("sr-is-hidden");
-            this.easyButton.removeClass("sr-is-hidden");
             if (this.reviewMode !== FlashcardReviewMode.Cram) {
                 this.goodButton.removeClass("sr-is-hidden");
             }
@@ -543,15 +530,12 @@ export class CardUI {
         this._createShowAnswerButton();
         this._createHardButton();
         this._createGoodButton();
-        this._createEasyButton();
     }
 
     private _resetResponseButtons() {
-        // Sets all buttons in to their default state
         this.answerButton.removeClass("sr-is-hidden");
         this.hardButton.addClass("sr-is-hidden");
         this.goodButton.addClass("sr-is-hidden");
-        this.easyButton.addClass("sr-is-hidden");
     }
 
     private _createShowAnswerButton() {
@@ -591,40 +575,20 @@ export class CardUI {
         });
     }
 
-    private _createEasyButton() {
-        this.easyButton = this.response.createEl("button");
-        this.easyButton.addClasses([
-            "sr-response-button",
-            "sr-hard-button",
-            "sr-bg-green",
-            "sr-is-hidden",
-        ]);
-        this.easyButton.setText(this.settings.flashcardEasyText);
-        this.easyButton.addEventListener("click", () => {
-            this._processReview(ReviewResponse.Easy);
-        });
-    }
-
-    private _setupEaseButton(
-        button: HTMLElement,
-        buttonName: string,
-        reviewResponse: ReviewResponse,
-    ) {
-        const schedule: RepItemScheduleInfo = this.reviewSequencer.determineCardSchedule(
-            reviewResponse,
-            this._currentCard,
-        );
-        const interval: number = schedule.interval;
-
-        if (this.settings.showIntervalInReviewButtons) {
-            if (Platform.isMobile) {
-                button.setText(textInterval(interval, true));
-            } else {
-                button.setText(`${buttonName} - ${textInterval(interval, false)}`);
-            }
-        } else {
-            button.setText(buttonName);
+    private _setupEaseButton(button: HTMLElement, buttonName: string, reviewResponse: ReviewResponse) {
+        if (reviewResponse === ReviewResponse.Hard) {
+            button.setText(`${buttonName} - Again`);
+            return;
         }
+
+        const schedule = this.reviewSequencer.determineCardSchedule(reviewResponse, this._currentCard);
+        if (!schedule) {
+            button.setText(buttonName);
+            return;
+        }
+
+        const interval = schedule.interval;
+        button.setText(`${buttonName} - ${interval}d`);
     }
 
     // Add CSS styles

@@ -31,11 +31,11 @@ export class RepItemScheduleInfoOsr extends RepItemScheduleInfo {
     }
 
     formatCardScheduleForHtmlComment(): string {
-        // We always want the correct schedule format, so we use the dummy due date if there is no schedule for a card
-        const dateStr: string = this.dueDate
-            ? this.formatDueDate()
-            : RepItemScheduleInfoOsr.dummyDueDateForNewCard;
-        return `!${dateStr},${this.interval},${this.latestEase}`;
+        // If there's no schedule, return "New"
+        if (!this.dueDate) {
+            return "New";
+        }
+        return `!${this.formatDueDate()},${this.interval},${this.latestEase}`;
     }
 
     static get initialInterval(): number {
@@ -43,10 +43,11 @@ export class RepItemScheduleInfoOsr extends RepItemScheduleInfo {
     }
 
     static getDummyScheduleForNewCard(settings: SRSettings): RepItemScheduleInfoOsr {
-        return RepItemScheduleInfoOsr.fromDueDateStr(
-            RepItemScheduleInfoOsr.dummyDueDateForNewCard,
+        return new RepItemScheduleInfoOsr(
+            null,
             RepItemScheduleInfoOsr.initialInterval,
             settings.baseEase,
+            null
         );
     }
 

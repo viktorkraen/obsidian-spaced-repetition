@@ -15,22 +15,25 @@ export function osrSchedule(
     delayedBeforeReview: number,
     settings: SRSettings,
     dueDateHistogram?: DueDateHistogram,
+    isNewCard: boolean = false,
 ): Record<string, number> {
     const delayedBeforeReviewDays = Math.max(0, Math.floor(delayedBeforeReview / TICKS_PER_DAY));
     let interval: number = originalInterval;
 
     if (response === ReviewResponse.Easy) {
+        // Збільшуємо ease на 20
         ease += 20;
-        interval = ((interval + delayedBeforeReviewDays) * ease) / 100;
-        interval *= settings.easyBonus;
+        // Розраховуємо новий інтервал
+        interval = Math.max(1, Math.round(((interval + delayedBeforeReviewDays) * ease) / 100));
+        // Застосовуємо бонус за легку відповідь
+        interval = Math.round(interval * settings.easyBonus);
     } else if (response === ReviewResponse.Good) {
         interval = ((interval + delayedBeforeReviewDays / 2) * ease) / 100;
     } else if (response === ReviewResponse.Hard) {
+        // Зменшуємо ease на 20% (але не менше 130)
         ease = Math.max(130, ease - 20);
-        interval = Math.max(
-            1,
-            (interval + delayedBeforeReviewDays / 4) * settings.lapsesIntervalChange,
-        );
+        // Зменшуємо інтервал на 50% при кожному натисканні
+        interval = Math.max(1, Math.round(originalInterval * 0.5));
     }
 
     // replaces random fuzz with load balancing over the fuzz interval

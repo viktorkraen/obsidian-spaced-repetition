@@ -153,14 +153,12 @@ export class FlashcardReviewSequencer implements IFlashcardReviewSequencer {
     }
 
     async processReviewReviewMode(response: ReviewResponse): Promise<void> {
-        if (response != ReviewResponse.Reset || this.currentCard.hasSchedule) {
+        // Оновлюємо розклад для всіх випадків, крім Reset на новій картці
+        if (!(response === ReviewResponse.Reset && !this.currentCard.hasSchedule)) {
             const oldSchedule = this.currentCard.scheduleInfo;
-
-            // We need to update the schedule if:
-            //  (1) the user reviewed with easy/good/hard (either a new or due card),
-            //  (2) or reset a due card
-            // Nothing to do if a user resets a new card
-            this.currentCard.scheduleInfo = this.determineCardSchedule(response, this.currentCard);
+            const newSchedule = this.determineCardSchedule(response, this.currentCard);
+            
+            this.currentCard.scheduleInfo = newSchedule;
 
             // Update the source file with the updated schedule
             await DataStore.getInstance().questionWriteSchedule(this.currentQuestion);
@@ -177,7 +175,7 @@ export class FlashcardReviewSequencer implements IFlashcardReviewSequencer {
         }
 
         // Move/delete the card
-        if (response == ReviewResponse.Reset) {
+        if (response == ReviewResponse.Reset || (response == ReviewResponse.Hard && !this.currentCard.hasSchedule)) {
             this.cardSequencer.moveCurrentCardToEndOfList();
             this.cardSequencer.nextCard();
         } else {
