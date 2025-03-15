@@ -59,6 +59,7 @@ export class SrsAlgorithmOsr implements ISrsAlgorithm {
             temp,
             response,
             dueDateNoteHistogram,
+            true
         );
 
         result.dueDate = moment(globalDateProvider.today).add(result.interval, "days");
@@ -119,7 +120,7 @@ export class SrsAlgorithmOsr implements ISrsAlgorithm {
         dueDateNoteHistogram?: DueDateHistogram,
     ): RepItemScheduleInfo {
         const noteScheduleOsr = noteSchedule as RepItemScheduleInfoOsr;
-        const temp = this.calcSchedule(noteScheduleOsr, response, dueDateNoteHistogram);
+        const temp = this.calcSchedule(noteScheduleOsr, response, dueDateNoteHistogram, false);
         
         const interval = temp.interval;
         const ease = temp.latestEase;
@@ -135,6 +136,7 @@ export class SrsAlgorithmOsr implements ISrsAlgorithm {
         schedule: RepItemScheduleInfoOsr,
         response: ReviewResponse,
         dueDateHistogram: DueDateHistogram,
+        isNewCard: boolean = false,
     ): RepItemScheduleInfoOsr {
         const temp: Record<string, number> = osrSchedule(
             response,
@@ -143,6 +145,7 @@ export class SrsAlgorithmOsr implements ISrsAlgorithm {
             schedule.delayedBeforeReviewTicks,
             this.settings,
             dueDateHistogram,
+            isNewCard
         );
 
         return new RepItemScheduleInfoOsr(
@@ -199,6 +202,7 @@ export class SrsAlgorithmOsr implements ISrsAlgorithm {
             cardSchedule.delayedBeforeReviewTicks,
             this.settings,
             dueDateFlashcardHistogram,
+            false
         );
         const interval = schedObj.interval;
         const ease = schedObj.ease;

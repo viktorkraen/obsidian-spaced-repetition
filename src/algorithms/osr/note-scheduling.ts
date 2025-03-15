@@ -28,7 +28,12 @@ export function osrSchedule(
         // Застосовуємо бонус за легку відповідь
         interval = Math.round(interval * settings.easyBonus);
     } else if (response === ReviewResponse.Good) {
-        interval = ((interval + delayedBeforeReviewDays / 2) * ease) / 100;
+        if (isNewCard) {
+            // Для нових карток встановлюємо інтервал 2 дні при натисканні Good
+            interval = 2;
+        } else {
+            interval = ((interval + delayedBeforeReviewDays / 2) * ease) / 100;
+        }
     } else if (response === ReviewResponse.Hard) {
         // Зменшуємо ease на 20% (але не менше 130)
         ease = Math.max(130, ease - 20);
@@ -37,7 +42,7 @@ export function osrSchedule(
     }
 
     // replaces random fuzz with load balancing over the fuzz interval
-    if (settings.loadBalance && dueDateHistogram !== undefined) {
+    if (settings.loadBalance && dueDateHistogram !== undefined && !(isNewCard && response === ReviewResponse.Good)) {
         interval = Math.round(interval);
         // disable fuzzing for small intervals
         if (interval > 7) {
@@ -53,8 +58,15 @@ export function osrSchedule(
         }
     }
 
-    interval = Math.min(interval, settings.maximumInterval);
-    interval = Math.round(interval * 10) / 10;
+    // Не застосовуємо обмеження максимального інтервалу для нових карток з кнопкою Good
+    if (!(isNewCard && response === ReviewResponse.Good)) {
+        interval = Math.min(interval, settings.maximumInterval);
+    }
+    
+    // Не застосовуємо округлення для нових карток з кнопкою Good
+    if (!(isNewCard && response === ReviewResponse.Good)) {
+        interval = Math.round(interval * 10) / 10;
+    }
 
     return { interval, ease };
 }

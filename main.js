@@ -9057,12 +9057,16 @@ function osrSchedule(response, originalInterval, ease, delayedBeforeReview, sett
     interval = Math.max(1, Math.round((interval + delayedBeforeReviewDays) * ease / 100));
     interval = Math.round(interval * settings.easyBonus);
   } else if (response === 1 /* Good */) {
-    interval = (interval + delayedBeforeReviewDays / 2) * ease / 100;
+    if (isNewCard) {
+      interval = 2;
+    } else {
+      interval = (interval + delayedBeforeReviewDays / 2) * ease / 100;
+    }
   } else if (response === 2 /* Hard */) {
     ease = Math.max(130, ease - 20);
     interval = Math.max(1, Math.round(originalInterval * 0.5));
   }
-  if (settings.loadBalance && dueDateHistogram !== void 0) {
+  if (settings.loadBalance && dueDateHistogram !== void 0 && !(isNewCard && response === 1 /* Good */)) {
     interval = Math.round(interval);
     if (interval > 7) {
       let fuzz;
@@ -9075,8 +9079,12 @@ function osrSchedule(response, originalInterval, ease, delayedBeforeReview, sett
       interval = dueDateHistogram.findLeastUsedIntervalOverRange(interval, fuzz);
     }
   }
-  interval = Math.min(interval, settings.maximumInterval);
-  interval = Math.round(interval * 10) / 10;
+  if (!(isNewCard && response === 1 /* Good */)) {
+    interval = Math.min(interval, settings.maximumInterval);
+  }
+  if (!(isNewCard && response === 1 /* Good */)) {
+    interval = Math.round(interval * 10) / 10;
+  }
   return { interval, ease };
 }
 function textInterval(interval, isMobile) {
@@ -9237,7 +9245,8 @@ var SrsAlgorithmOsr = class {
     const result = this.calcSchedule(
       temp,
       response,
-      dueDateNoteHistogram
+      dueDateNoteHistogram,
+      true
     );
     result.dueDate = (0, import_moment2.default)(globalDateProvider.today).add(result.interval, "days");
     return result;
@@ -9282,21 +9291,22 @@ var SrsAlgorithmOsr = class {
   }
   noteCalcUpdatedSchedule(notePath, noteSchedule, response, dueDateNoteHistogram) {
     const noteScheduleOsr = noteSchedule;
-    const temp = this.calcSchedule(noteScheduleOsr, response, dueDateNoteHistogram);
+    const temp = this.calcSchedule(noteScheduleOsr, response, dueDateNoteHistogram, false);
     const interval = temp.interval;
     const ease = temp.latestEase;
     const dueDate = (0, import_moment2.default)(globalDateProvider.today).add(interval, "days");
     this.noteEaseList.setEaseForPath(notePath, ease);
     return new RepItemScheduleInfoOsr(dueDate, interval, ease);
   }
-  calcSchedule(schedule, response, dueDateHistogram) {
+  calcSchedule(schedule, response, dueDateHistogram, isNewCard = false) {
     const temp = osrSchedule(
       response,
       schedule.interval,
       schedule.latestEase,
       schedule.delayedBeforeReviewTicks,
       this.settings,
-      dueDateHistogram
+      dueDateHistogram,
+      isNewCard
     );
     return new RepItemScheduleInfoOsr(
       globalDateProvider.today,
@@ -9338,7 +9348,8 @@ var SrsAlgorithmOsr = class {
       cardSchedule.latestEase,
       cardSchedule.delayedBeforeReviewTicks,
       this.settings,
-      dueDateFlashcardHistogram
+      dueDateFlashcardHistogram,
+      false
     );
     const interval = schedObj.interval;
     const ease = schedObj.ease;
