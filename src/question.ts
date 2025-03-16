@@ -238,37 +238,25 @@ export class Question {
             const headerLine = lines[0];
             const contentLines = lines.slice(1);
             
-            // Знаходимо останній '-- --' роздільник та всі рядки до нього
-            let lastSeparatorIndex = -1;
-            let lastContentIndex = -1;
-            
-            for (let i = contentLines.length - 1; i >= 0; i--) {
-                const line = contentLines[i].trim();
-                if (line === "-- --") {
-                    lastSeparatorIndex = i;
-                    break;
+            // Знаходимо всі роздільники "-- --"
+            const separatorIndices: number[] = [];
+            for (let i = 0; i < contentLines.length; i++) {
+                if (contentLines[i].trim() === "-- --") {
+                    separatorIndices.push(i);
                 }
             }
             
-            // Знаходимо останній непорожній рядок перед роздільником
-            for (let i = lastSeparatorIndex - 1; i >= 0; i--) {
-                if (contentLines[i].trim() !== "") {
-                    lastContentIndex = i;
-                    break;
-                }
-            }
-            
-            if (lastSeparatorIndex !== -1) {
-                // Зберігаємо контент до останнього непорожнього рядка
-                const preservedContent = contentLines.slice(0, lastContentIndex + 1);
+            // Якщо знайдено хоча б два роздільники
+            if (separatorIndices.length >= 2) {
+                // Перший роздільник
+                const firstSeparatorIndex = separatorIndices[0];
+                // Останній роздільник
+                const lastSeparatorIndex = separatorIndices[separatorIndices.length - 1];
                 
-                // Додаємо один порожній рядок перед роздільником
-                preservedContent.push("");
+                // Зберігаємо контент до останнього роздільника включно
+                const preservedContent = contentLines.slice(0, lastSeparatorIndex + 1);
                 
-                // Додаємо роздільник
-                preservedContent.push(contentLines[lastSeparatorIndex]);
-                
-                // Додаємо scheduleHtml після роздільника, якщо він є
+                // Додаємо scheduleHtml після останнього роздільника, якщо він є
                 if (scheduleHtml) {
                     preservedContent.push(scheduleHtml.trim());
                 }
@@ -296,8 +284,19 @@ export class Question {
 
     updateQuestionWithinNoteText(noteText: string, settings: SRSettings): string {
         const originalText: string = this.questionText.original;
+        
+        // Видаляємо SR-коментар з оригінального тексту
+        const originalWithoutSchedule = originalText.replace(/<!--SR:.*?-->/g, '').trim();
+        
+        // Видаляємо SR-коментар з тексту нотатки
+        const textWithoutSchedule = noteText.replace(/<!--SR:.*?-->/g, '');
+        
+        // Форматуємо текст без розкладу
         const replacementText = this.formatForNote(settings, true); // Skip schedule when editing
-        let newText = MultiLineTextFinder.findAndReplace(noteText, originalText, replacementText);
+        
+        // Замінюємо текст питання на новий, використовуючи версію без SR-коментаря для пошуку
+        let newText = MultiLineTextFinder.findAndReplace(textWithoutSchedule, originalWithoutSchedule, replacementText);
+        
         if (newText) {
             this.questionText = QuestionText.create(
                 replacementText,
@@ -306,10 +305,10 @@ export class Question {
             );
         } else {
             console.error(
-                `updateQuestionText: Text not found: ${originalText.substring(
+                `updateQuestionText: Text not found: ${originalWithoutSchedule.substring(
                     0,
                     100,
-                )} in note: ${noteText.substring(0, 100)}`,
+                )} in note: ${textWithoutSchedule.substring(0, 100)}`,
             );
             newText = noteText;
         }

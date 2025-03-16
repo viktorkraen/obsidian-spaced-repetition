@@ -10702,6 +10702,51 @@ var MultiLineTextFinder = class {
       const searchTextArray = splitTextIntoLineArray(normalizedSearchText).filter((line) => line.trim() !== "");
       console.log("Source text array:", JSON.stringify(sourceTextArray));
       console.log("Search text array:", JSON.stringify(searchTextArray));
+      const isHeaderBasicCard = searchTextArray.length > 2 && searchTextArray.some((line) => line.trim().startsWith("#")) && searchTextArray.some((line) => line.trim() === "-- --");
+      if (isHeaderBasicCard) {
+        console.log("Detected HeaderBasic card with separators");
+        let headerLineIdx = -1;
+        for (let i2 = 0; i2 < searchTextArray.length; i2++) {
+          if (searchTextArray[i2].trim().startsWith("#")) {
+            headerLineIdx = i2;
+            break;
+          }
+        }
+        if (headerLineIdx !== -1) {
+          const headerLine = searchTextArray[headerLineIdx];
+          console.log("Header line:", JSON.stringify(headerLine));
+          let sourceHeaderLineIdx = -1;
+          for (let i2 = 0; i2 < sourceTextArray.length; i2++) {
+            if (sourceTextArray[i2].trim() === headerLine.trim()) {
+              sourceHeaderLineIdx = i2;
+              break;
+            }
+          }
+          if (sourceHeaderLineIdx !== -1) {
+            console.log("Found header in source at line:", sourceHeaderLineIdx);
+            const separatorIndices = [];
+            for (let i2 = sourceHeaderLineIdx + 1; i2 < sourceTextArray.length; i2++) {
+              if (sourceTextArray[i2].trim() === "-- --") {
+                separatorIndices.push(i2);
+              }
+            }
+            if (separatorIndices.length >= 2) {
+              console.log("Found separators at lines:", separatorIndices);
+              const startLine = sourceHeaderLineIdx;
+              const endLine = separatorIndices[separatorIndices.length - 1];
+              const linesToRemove = endLine - startLine + 1;
+              console.log("Start line:", startLine);
+              console.log("End line:", endLine);
+              console.log("Lines to remove:", linesToRemove);
+              const replacementTextArray = splitTextIntoLineArray(replacementText);
+              sourceTextArray.splice(startLine, linesToRemove, ...replacementTextArray);
+              result = sourceTextArray.join("\n");
+              console.log("Successfully replaced HeaderBasic card!");
+              return result;
+            }
+          }
+        }
+      }
       const lineNo = MultiLineTextFinder.find(
         sourceTextArray,
         searchTextArray
@@ -10766,12 +10811,46 @@ var MultiLineTextFinder = class {
         }
       }
     }
+    if (result === null && searchText.length > 2) {
+      console.log("Trying to find key lines...");
+      const firstLine = searchText[0].trim();
+      const lastLine = searchText[searchText.length - 1].trim();
+      let firstLineIdx = -1;
+      for (let i2 = 0; i2 < sourceText.length; i2++) {
+        if (sourceText[i2].trim() === firstLine) {
+          firstLineIdx = i2;
+          break;
+        }
+      }
+      if (firstLineIdx !== -1) {
+        for (let i2 = firstLineIdx + 1; i2 < sourceText.length; i2++) {
+          if (sourceText[i2].trim() === lastLine) {
+            result = firstLineIdx;
+            console.log("Found key lines match starting at line:", result);
+            break;
+          }
+        }
+      }
+    }
     return result;
   }
 };
 function findEndLine(sourceText, startLine, searchText) {
   let endLine = startLine;
   let searchIdx = 0;
+  console.log("=== findEndLine ===");
+  console.log("Start line:", startLine);
+  console.log("Search text:", JSON.stringify(searchText));
+  if (searchText.length > 2 && searchText[0].trim() === "-- --" && searchText[searchText.length - 1].trim() === "-- --") {
+    console.log("Special case: searching for last separator");
+    for (let i2 = sourceText.length - 1; i2 >= startLine; i2--) {
+      if (sourceText[i2].trim() === "-- --") {
+        endLine = i2;
+        console.log("Found last separator at line:", endLine);
+        return endLine;
+      }
+    }
+  }
   for (let i2 = startLine; i2 < sourceText.length; i2++) {
     const sourceLine = sourceText[i2].trim();
     if (sourceLine === "") {
@@ -10781,10 +10860,12 @@ function findEndLine(sourceText, startLine, searchText) {
       endLine = i2;
       searchIdx++;
       if (searchIdx === searchText.length) {
+        console.log("Found all search lines, end line:", endLine);
         break;
       }
     }
   }
+  console.log("End line:", endLine);
   return endLine;
 }
 
@@ -11052,25 +11133,16 @@ var Question = class {
       const lines = resultBase.split("\n");
       const headerLine = lines[0];
       const contentLines = lines.slice(1);
-      let lastSeparatorIndex = -1;
-      let lastContentIndex = -1;
-      for (let i2 = contentLines.length - 1; i2 >= 0; i2--) {
-        const line = contentLines[i2].trim();
-        if (line === "-- --") {
-          lastSeparatorIndex = i2;
-          break;
+      const separatorIndices = [];
+      for (let i2 = 0; i2 < contentLines.length; i2++) {
+        if (contentLines[i2].trim() === "-- --") {
+          separatorIndices.push(i2);
         }
       }
-      for (let i2 = lastSeparatorIndex - 1; i2 >= 0; i2--) {
-        if (contentLines[i2].trim() !== "") {
-          lastContentIndex = i2;
-          break;
-        }
-      }
-      if (lastSeparatorIndex !== -1) {
-        const preservedContent = contentLines.slice(0, lastContentIndex + 1);
-        preservedContent.push("");
-        preservedContent.push(contentLines[lastSeparatorIndex]);
+      if (separatorIndices.length >= 2) {
+        const firstSeparatorIndex = separatorIndices[0];
+        const lastSeparatorIndex = separatorIndices[separatorIndices.length - 1];
+        const preservedContent = contentLines.slice(0, lastSeparatorIndex + 1);
         if (scheduleHtml) {
           preservedContent.push(scheduleHtml.trim());
         }
@@ -11094,8 +11166,10 @@ var Question = class {
   }
   updateQuestionWithinNoteText(noteText, settings) {
     const originalText = this.questionText.original;
+    const originalWithoutSchedule = originalText.replace(/<!--SR:.*?-->/g, "").trim();
+    const textWithoutSchedule = noteText.replace(/<!--SR:.*?-->/g, "");
     const replacementText = this.formatForNote(settings, true);
-    let newText = MultiLineTextFinder.findAndReplace(noteText, originalText, replacementText);
+    let newText = MultiLineTextFinder.findAndReplace(textWithoutSchedule, originalWithoutSchedule, replacementText);
     if (newText) {
       this.questionText = QuestionText.create(
         replacementText,
@@ -11104,10 +11178,10 @@ var Question = class {
       );
     } else {
       console.error(
-        `updateQuestionText: Text not found: ${originalText.substring(
+        `updateQuestionText: Text not found: ${originalWithoutSchedule.substring(
           0,
           100
-        )} in note: ${noteText.substring(0, 100)}`
+        )} in note: ${textWithoutSchedule.substring(0, 100)}`
       );
       newText = noteText;
     }

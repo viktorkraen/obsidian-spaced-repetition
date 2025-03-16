@@ -249,6 +249,69 @@ export class MultiLineTextFinder {
             
             console.log('Source text array:', JSON.stringify(sourceTextArray));
             console.log('Search text array:', JSON.stringify(searchTextArray));
+            
+            // Перевіряємо, чи це картка типу HeaderBasic з роздільниками "-- --"
+            const isHeaderBasicCard = searchTextArray.length > 2 && 
+                searchTextArray.some(line => line.trim().startsWith('#')) && 
+                searchTextArray.some(line => line.trim() === "-- --");
+            
+            if (isHeaderBasicCard) {
+                console.log('Detected HeaderBasic card with separators');
+                
+                // Знаходимо заголовок (перший рядок, що починається з #)
+                let headerLineIdx = -1;
+                for (let i = 0; i < searchTextArray.length; i++) {
+                    if (searchTextArray[i].trim().startsWith('#')) {
+                        headerLineIdx = i;
+                        break;
+                    }
+                }
+                
+                if (headerLineIdx !== -1) {
+                    const headerLine = searchTextArray[headerLineIdx];
+                    console.log('Header line:', JSON.stringify(headerLine));
+                    
+                    // Знаходимо заголовок у вихідному тексті
+                    let sourceHeaderLineIdx = -1;
+                    for (let i = 0; i < sourceTextArray.length; i++) {
+                        if (sourceTextArray[i].trim() === headerLine.trim()) {
+                            sourceHeaderLineIdx = i;
+                            break;
+                        }
+                    }
+                    
+                    if (sourceHeaderLineIdx !== -1) {
+                        console.log('Found header in source at line:', sourceHeaderLineIdx);
+                        
+                        // Знаходимо всі роздільники "-- --" після заголовка
+                        const separatorIndices: number[] = [];
+                        for (let i = sourceHeaderLineIdx + 1; i < sourceTextArray.length; i++) {
+                            if (sourceTextArray[i].trim() === "-- --") {
+                                separatorIndices.push(i);
+                            }
+                        }
+                        
+                        if (separatorIndices.length >= 2) {
+                            console.log('Found separators at lines:', separatorIndices);
+                            
+                            // Визначаємо діапазон рядків для заміни
+                            const startLine = sourceHeaderLineIdx;
+                            const endLine = separatorIndices[separatorIndices.length - 1];
+                            const linesToRemove = endLine - startLine + 1;
+                            
+                            console.log('Start line:', startLine);
+                            console.log('End line:', endLine);
+                            console.log('Lines to remove:', linesToRemove);
+                            
+                            const replacementTextArray = splitTextIntoLineArray(replacementText);
+                            sourceTextArray.splice(startLine, linesToRemove, ...replacementTextArray);
+                            result = sourceTextArray.join('\n');
+                            console.log('Successfully replaced HeaderBasic card!');
+                            return result;
+                        }
+                    }
+                }
+            }
 
             const lineNo: number | null = MultiLineTextFinder.find(
                 sourceTextArray,
@@ -285,6 +348,7 @@ export class MultiLineTextFinder {
 
         console.log('=== MultiLineTextFinder.find ===');
         
+        // Спочатку спробуємо знайти всі рядки підряд
         for (let sourceIdx = 0; sourceIdx < sourceText.length; sourceIdx++) {
             const sourceLine: string = sourceText[sourceIdx].trim();
             const searchLine: string = searchText[searchIdx].trim();
@@ -332,6 +396,38 @@ export class MultiLineTextFinder {
                 }
             }
         }
+        
+        // Якщо не знайшли всі рядки підряд, спробуємо знайти ключові рядки
+        if (result === null && searchText.length > 2) {
+            console.log('Trying to find key lines...');
+            
+            // Шукаємо перший рядок
+            const firstLine = searchText[0].trim();
+            // Шукаємо останній рядок
+            const lastLine = searchText[searchText.length - 1].trim();
+            
+            // Шукаємо перший рядок у вихідному тексті
+            let firstLineIdx = -1;
+            for (let i = 0; i < sourceText.length; i++) {
+                if (sourceText[i].trim() === firstLine) {
+                    firstLineIdx = i;
+                    break;
+                }
+            }
+            
+            // Якщо знайшли перший рядок, шукаємо останній рядок після нього
+            if (firstLineIdx !== -1) {
+                for (let i = firstLineIdx + 1; i < sourceText.length; i++) {
+                    if (sourceText[i].trim() === lastLine) {
+                        // Знайшли обидва рядки, повертаємо індекс першого
+                        result = firstLineIdx;
+                        console.log('Found key lines match starting at line:', result);
+                        break;
+                    }
+                }
+            }
+        }
+        
         return result;
     }
 }
@@ -341,6 +437,29 @@ function findEndLine(sourceText: string[], startLine: number, searchText: string
     let endLine = startLine;
     let searchIdx = 0;
     
+    console.log('=== findEndLine ===');
+    console.log('Start line:', startLine);
+    console.log('Search text:', JSON.stringify(searchText));
+    
+    // Якщо пошуковий текст містить більше 2 рядків, і перший та останній рядки є "-- --",
+    // то ми шукаємо останній "-- --" після startLine
+    if (searchText.length > 2 && 
+        searchText[0].trim() === "-- --" && 
+        searchText[searchText.length - 1].trim() === "-- --") {
+        
+        console.log('Special case: searching for last separator');
+        
+        // Шукаємо останній "-- --" після startLine
+        for (let i = sourceText.length - 1; i >= startLine; i--) {
+            if (sourceText[i].trim() === "-- --") {
+                endLine = i;
+                console.log('Found last separator at line:', endLine);
+                return endLine;
+            }
+        }
+    }
+    
+    // Стандартний пошук
     for (let i = startLine; i < sourceText.length; i++) {
         const sourceLine = sourceText[i].trim();
         
@@ -356,10 +475,12 @@ function findEndLine(sourceText: string[], startLine: number, searchText: string
             
             // Якщо знайшли всі пошукові рядки
             if (searchIdx === searchText.length) {
+                console.log('Found all search lines, end line:', endLine);
                 break;
             }
         }
     }
     
+    console.log('End line:', endLine);
     return endLine;
 }
