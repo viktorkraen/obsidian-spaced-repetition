@@ -256,6 +256,11 @@ export class Question {
                 // Зберігаємо контент до останнього роздільника включно
                 const preservedContent = contentLines.slice(0, lastSeparatorIndex + 1);
                 
+                // Додаємо пустий рядок після першого роздільника, якщо його немає
+                if (firstSeparatorIndex + 1 < preservedContent.length && preservedContent[firstSeparatorIndex + 1].trim() !== '') {
+                    preservedContent.splice(firstSeparatorIndex + 1, 0, '');
+                }
+                
                 // Додаємо scheduleHtml після останнього роздільника, якщо він є
                 if (scheduleHtml) {
                     preservedContent.push(scheduleHtml.trim());
@@ -285,6 +290,9 @@ export class Question {
     updateQuestionWithinNoteText(noteText: string, settings: SRSettings): string {
         const originalText: string = this.questionText.original;
         
+        // Зберігаємо SR-коментар з оригінального тексту
+        const srComment = originalText.match(/<!--SR:.*?-->/)?.[0] || '';
+        
         // Видаляємо SR-коментар з оригінального тексту
         const originalWithoutSchedule = originalText.replace(/<!--SR:.*?-->/g, '').trim();
         
@@ -294,12 +302,15 @@ export class Question {
         // Форматуємо текст без розкладу
         const replacementText = this.formatForNote(settings, true); // Skip schedule when editing
         
+        // Додаємо збережений SR-коментар до заміни
+        const replacementWithSchedule = srComment ? `${replacementText}\n${srComment}` : replacementText;
+        
         // Замінюємо текст питання на новий, використовуючи версію без SR-коментаря для пошуку
-        let newText = MultiLineTextFinder.findAndReplace(textWithoutSchedule, originalWithoutSchedule, replacementText);
+        let newText = MultiLineTextFinder.findAndReplace(textWithoutSchedule, originalWithoutSchedule, replacementWithSchedule);
         
         if (newText) {
             this.questionText = QuestionText.create(
-                replacementText,
+                replacementWithSchedule,
                 this.questionText.textDirection,
                 settings,
             );

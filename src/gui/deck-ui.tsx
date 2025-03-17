@@ -133,7 +133,7 @@ export class DeckUI {
         dateInput.addClass("sr-date-sim-input");
         
         const resetButton = dateSimContainer.createEl("button");
-        resetButton.setText("Reset Date");
+        resetButton.setText("Refresh 🔄");
         resetButton.addClass("sr-date-sim-reset");
         
         // Add event listeners

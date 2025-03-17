@@ -11143,6 +11143,9 @@ var Question = class {
         const firstSeparatorIndex = separatorIndices[0];
         const lastSeparatorIndex = separatorIndices[separatorIndices.length - 1];
         const preservedContent = contentLines.slice(0, lastSeparatorIndex + 1);
+        if (firstSeparatorIndex + 1 < preservedContent.length && preservedContent[firstSeparatorIndex + 1].trim() !== "") {
+          preservedContent.splice(firstSeparatorIndex + 1, 0, "");
+        }
         if (scheduleHtml) {
           preservedContent.push(scheduleHtml.trim());
         }
@@ -11165,14 +11168,18 @@ var Question = class {
     return result;
   }
   updateQuestionWithinNoteText(noteText, settings) {
+    var _a;
     const originalText = this.questionText.original;
+    const srComment = ((_a = originalText.match(/<!--SR:.*?-->/)) == null ? void 0 : _a[0]) || "";
     const originalWithoutSchedule = originalText.replace(/<!--SR:.*?-->/g, "").trim();
     const textWithoutSchedule = noteText.replace(/<!--SR:.*?-->/g, "");
     const replacementText = this.formatForNote(settings, true);
-    let newText = MultiLineTextFinder.findAndReplace(textWithoutSchedule, originalWithoutSchedule, replacementText);
+    const replacementWithSchedule = srComment ? `${replacementText}
+${srComment}` : replacementText;
+    let newText = MultiLineTextFinder.findAndReplace(textWithoutSchedule, originalWithoutSchedule, replacementWithSchedule);
     if (newText) {
       this.questionText = QuestionText.create(
-        replacementText,
+        replacementWithSchedule,
         this.questionText.textDirection,
         settings
       );
@@ -27900,7 +27907,7 @@ var DeckUI = class {
     dateInput.value = globalDateProvider.today.format("YYYY-MM-DD");
     dateInput.addClass("sr-date-sim-input");
     const resetButton = dateSimContainer.createEl("button");
-    resetButton.setText("Reset Date");
+    resetButton.setText("Refresh \u{1F504}");
     resetButton.addClass("sr-date-sim-reset");
     dateInput.addEventListener("change", async (e2) => {
       const target = e2.target;
