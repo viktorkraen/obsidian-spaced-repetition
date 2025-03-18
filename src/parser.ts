@@ -200,9 +200,8 @@ export function parse(text: string, options: ParserOptions): ParsedQuestionInfo[
             // Pick up cloze cards
             cardType = CardType.Cloze;
         } else if (options.headingAsBasic && 
-            (currentLine.trim().startsWith('#') || /^\d+$/.test(currentLine.trim())) && 
-            !currentLine.trim().includes('-') && // Виключаємо теги типу #flashcards-tts-de
-            !currentLine.trim().match(/^#[a-zA-Z0-9_-]+$/)) { // Виключаємо прості теги типу #tag
+            (currentLine.trim().match(/^#+\s+/) || /^\d+$/.test(currentLine.trim())) && // Перевіряємо що після # є пробіл
+            !currentLine.trim().match(/^--\s--$/)) { // Перевіряємо що це не роздільник -- --
             
             // Pick up heading as basic card if enabled
             cardType = CardType.HeaderBasic;

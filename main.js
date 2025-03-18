@@ -11378,8 +11378,8 @@ function parse(text, options) {
       i2++;
     } else if (cardType === null && clozecrafter.isClozeNote(currentLine)) {
       cardType = 4 /* Cloze */;
-    } else if (options.headingAsBasic && (currentLine.trim().startsWith("#") || /^\d+$/.test(currentLine.trim())) && !currentLine.trim().includes("-") && // Виключаємо теги типу #flashcards-tts-de
-    !currentLine.trim().match(/^#[a-zA-Z0-9_-]+$/)) {
+    } else if (options.headingAsBasic && (currentLine.trim().match(/^#+\s+/) || /^\d+$/.test(currentLine.trim())) && // Перевіряємо що після # є пробіл
+    !currentLine.trim().match(/^--\s--$/)) {
       cardType = 5 /* HeaderBasic */;
       firstLineNo = i2;
       let nextLine = i2 + 1;
