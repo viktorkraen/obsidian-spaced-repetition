@@ -19,6 +19,9 @@ import { SRSettings } from "src/settings";
 import { RenderMarkdownWrapper } from "src/utils/renderers";
 
 export class CardUI {
+    public cardsPerHourInfo: HTMLDivElement;
+    public cardsLeftThisHour: number;
+    public lastHour: number;
     public app: App;
     public plugin: SRPlugin;
     public contentEl: HTMLElement;
@@ -107,6 +110,82 @@ export class CardUI {
         this.controls.addClass("sr-controls");
 
         this._createCardControls();
+
+        // Додаємо відображення карток на годину
+        this.cardsPerHourInfo = this.header.createDiv();
+        this.cardsPerHourInfo.addClass("sr-cards-per-hour-info");
+
+        const cardsPerHourValue = this.cardsPerHourInfo.createEl("span");
+        cardsPerHourValue.addClass("sr-cards-per-hour-value");
+
+        const cardsPerHourLabel = this.cardsPerHourInfo.createEl("span");
+        cardsPerHourLabel.className = "sr-cards-per-hour-label";
+        cardsPerHourLabel.innerText = "per hour";
+
+        if (this.settings.cardsLeftThisHour === undefined) this.settings.cardsLeftThisHour = 0;
+        if (this.settings.lastHour === undefined) this.settings.lastHour = -1;
+
+        const updateCardsPerHour = () => {
+            const nowHour = new Date().getHours();
+            const stats = this.reviewSequencer.getDeckStats(require("src/topic-path").TopicPath.emptyPath);
+            const totalCards = stats.dueCount + stats.newCount;
+            const endHour = this.settings.reviewEndHour;
+            let hoursLeft;
+            if (endHour > nowHour) {
+                hoursLeft = endHour - nowHour;
+            } else {
+                hoursLeft = (24 - nowHour) + endHour;
+            }
+            if (hoursLeft <= 0) hoursLeft = 1;
+
+            if (
+                this.settings.lastHour === undefined ||
+                this.settings.lastTotalCards === undefined ||
+                this.settings.cardsQuotaPerHour === undefined ||
+                this.settings.cardsQuotaPerHour.length !== hoursLeft ||
+                this.settings.lastHour !== nowHour
+            ) {
+                const baseQuota = Math.ceil(totalCards / hoursLeft);
+                this.settings.cardsQuotaPerHour = Array(hoursLeft).fill(baseQuota);
+                this.settings.lastHour = nowHour;
+                this.settings.lastTotalCards = totalCards;
+                this.plugin.savePluginData();
+            } else if (totalCards > this.settings.lastTotalCards) {
+                const newCards = totalCards - this.settings.lastTotalCards;
+                const addPerHour = Math.floor(newCards / hoursLeft);
+                let remainder = newCards % hoursLeft;
+                for (let i = 0; i < hoursLeft; i++) {
+                    this.settings.cardsQuotaPerHour[i] += addPerHour;
+                    if (remainder > 0) {
+                        this.settings.cardsQuotaPerHour[i]++;
+                        remainder--;
+                    }
+                }
+                this.settings.lastTotalCards = totalCards;
+                this.plugin.savePluginData();
+            }
+
+            cardsPerHourValue.innerText = this.settings.cardsQuotaPerHour[0].toString();
+        };
+
+        updateCardsPerHour();
+
+        // Зменшення при вивченні картки
+        const origProcessReview = this._processReview.bind(this);
+        this._processReview = async (response) => {
+            await origProcessReview(response);
+            // Зменшуємо тільки якщо картка дійсно вивчена (Good або Easy)
+            const ReviewResponseEnum = require("src/algorithms/base/repetition-item").ReviewResponse;
+            if (response === ReviewResponseEnum.Good || response === ReviewResponseEnum.Easy) {
+                if (this.settings.cardsQuotaPerHour && this.settings.cardsQuotaPerHour.length > 0) {
+                    this.settings.cardsQuotaPerHour[0] = Math.max(0, this.settings.cardsQuotaPerHour[0] - 1);
+                    this.plugin.savePluginData();
+                }
+            }
+            if (this.settings.cardsQuotaPerHour && this.settings.cardsQuotaPerHour.length > 0) {
+                cardsPerHourValue.innerText = this.settings.cardsQuotaPerHour[0].toString();
+            }
+        };
 
         if (this.settings.showContextInCards) {
             this.context = this.view.createDiv();

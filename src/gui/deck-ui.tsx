@@ -158,6 +158,91 @@ export class DeckUI {
             await this.updateDisplay();
         });
 
+        // Add end hour component below stats
+        const endHourContainer = this.stats.createDiv();
+        endHourContainer.addClass("sr-end-hour-container");
+        
+        const endHourLabel = endHourContainer.createEl("span");
+        endHourLabel.setText(t("END_HOUR") + ": ");
+        endHourLabel.addClass("sr-end-hour-label");
+        
+        const endHourSelect = endHourContainer.createEl("select");
+        endHourSelect.addClass("sr-end-hour-select");
+        for (let hour = 0; hour <= 23; hour++) {
+            const option = endHourSelect.createEl("option");
+            option.value = hour.toString();
+            option.text = hour.toString().padStart(2, "0") + ":00";
+            if (hour === this.plugin.data.settings.reviewEndHour) {
+                option.selected = true;
+            }
+        }
+
+        endHourSelect.addEventListener("change", (e) => {
+            const value = parseInt((e.target as HTMLSelectElement).value);
+            if (!isNaN(value) && value >= 0 && value <= 23) {
+                this.plugin.data.settings.reviewEndHour = value;
+                this.plugin.savePluginData();
+                updateCardsPerHour();
+            }
+        });
+
+        const cardsPerHourContainer = endHourContainer.createDiv();
+        cardsPerHourContainer.addClass("sr-cards-per-hour-container");
+
+        const cardsPerHourValue = cardsPerHourContainer.createEl("span");
+        cardsPerHourValue.className = "sr-cards-per-hour-value";
+
+        const cardsPerHourLabel = cardsPerHourContainer.createEl("span");
+        cardsPerHourLabel.className = "sr-cards-per-hour-label";
+        cardsPerHourLabel.innerText = "per hour";
+
+        const updateCardsPerHour = () => {
+            const nowHour = new Date().getHours();
+            const totalCards = statistics.dueCount + statistics.newCount;
+            const endHour = this.plugin.data.settings.reviewEndHour;
+            let hoursLeft;
+            if (endHour > nowHour) {
+                hoursLeft = endHour - nowHour;
+            } else {
+                hoursLeft = (24 - nowHour) + endHour;
+            }
+            if (hoursLeft <= 0) hoursLeft = 1;
+
+            if (
+                this.plugin.data.settings.lastHour === undefined ||
+                this.plugin.data.settings.lastTotalCards === undefined ||
+                this.plugin.data.settings.cardsQuotaPerHour === undefined ||
+                this.plugin.data.settings.cardsQuotaPerHour.length !== hoursLeft ||
+                this.plugin.data.settings.lastHour !== nowHour
+            ) {
+                // новий період або перший запуск
+                const baseQuota = Math.ceil(totalCards / hoursLeft);
+                this.plugin.data.settings.cardsQuotaPerHour = Array(hoursLeft).fill(baseQuota);
+                this.plugin.data.settings.lastHour = nowHour;
+                this.plugin.data.settings.lastTotalCards = totalCards;
+                this.plugin.savePluginData();
+            } else if (totalCards > this.plugin.data.settings.lastTotalCards) {
+                // додано нові картки, розподіляємо їх
+                const newCards = totalCards - this.plugin.data.settings.lastTotalCards;
+                const addPerHour = Math.floor(newCards / hoursLeft);
+                let remainder = newCards % hoursLeft;
+                for (let i = 0; i < hoursLeft; i++) {
+                    this.plugin.data.settings.cardsQuotaPerHour[i] += addPerHour;
+                    if (remainder > 0) {
+                        this.plugin.data.settings.cardsQuotaPerHour[i]++;
+                        remainder--;
+                    }
+                }
+                this.plugin.data.settings.lastTotalCards = totalCards;
+                this.plugin.savePluginData();
+            }
+
+            // Відображаємо квоту для поточної години (перша в масиві)
+            cardsPerHourValue.innerText = this.plugin.data.settings.cardsQuotaPerHour[0].toString();
+        };
+
+        updateCardsPerHour();
+
         this._createHeaderStatsContainer(t("DUE_CARDS"), statistics.dueCount, "sr-bg-green");
         this._createHeaderStatsContainer(t("NEW_CARDS"), statistics.newCount, "sr-bg-blue");
         this._createHeaderStatsContainer(t("TOTAL_CARDS"), statistics.totalCount, "sr-bg-red");

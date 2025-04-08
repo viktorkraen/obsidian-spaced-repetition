@@ -16,6 +16,8 @@ export default {
     GOOD: "Добре",
     EASY: "Легко",
     SHOW_ANSWER: "Показати відповідь",
+    END_TIME: "Час закінчення",
+    END_HOUR: "Година закінчення",
     CARD_PROGRESS_RESET: "Прогрес картки скинуто",
     SAVE: "Зберегти",
     CANCEL: "Скасувати",

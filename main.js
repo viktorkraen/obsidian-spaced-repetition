@@ -10,6 +10,9 @@ var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
 var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
+var __esm = (fn2, res) => function __init() {
+  return fn2 && (res = (0, fn2[__getOwnPropNames(fn2)[0]])(fn2 = 0)), res;
+};
 var __commonJS = (cb, mod) => function __require() {
   return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
 };
@@ -38,6 +41,43 @@ var __publicField = (obj, key, value) => {
   __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
   return value;
 };
+
+// src/algorithms/base/repetition-item.ts
+var repetition_item_exports = {};
+__export(repetition_item_exports, {
+  RepetitionItem: () => RepetitionItem,
+  RepetitionPhase: () => RepetitionPhase,
+  ReviewResponse: () => ReviewResponse
+});
+var ReviewResponse, RepetitionPhase, RepetitionItem;
+var init_repetition_item = __esm({
+  "src/algorithms/base/repetition-item.ts"() {
+    ReviewResponse = /* @__PURE__ */ ((ReviewResponse2) => {
+      ReviewResponse2[ReviewResponse2["Easy"] = 0] = "Easy";
+      ReviewResponse2[ReviewResponse2["Good"] = 1] = "Good";
+      ReviewResponse2[ReviewResponse2["Hard"] = 2] = "Hard";
+      ReviewResponse2[ReviewResponse2["Reset"] = 3] = "Reset";
+      return ReviewResponse2;
+    })(ReviewResponse || {});
+    RepetitionPhase = /* @__PURE__ */ ((RepetitionPhase2) => {
+      RepetitionPhase2[RepetitionPhase2["New"] = 0] = "New";
+      RepetitionPhase2[RepetitionPhase2["Review"] = 1] = "Review";
+      return RepetitionPhase2;
+    })(RepetitionPhase || {});
+    RepetitionItem = class {
+      // scheduling
+      get hasSchedule() {
+        return this.scheduleInfo != null;
+      }
+      get isNew() {
+        return !this.hasSchedule;
+      }
+      get isDue() {
+        return this.hasSchedule && this.scheduleInfo.isDue();
+      }
+    };
+  }
+});
 
 // node_modules/moment/moment.js
 var require_moment = __commonJS({
@@ -4028,6 +4068,42 @@ var require_moment = __commonJS({
   }
 });
 
+// src/constants.ts
+var SCHEDULING_INFO_REGEX, YAML_FRONT_MATTER_REGEX, MULTI_SCHEDULING_EXTRACTOR, LEGACY_SCHEDULING_EXTRACTOR, OBSIDIAN_TAG_AT_STARTOFLINE_REGEX, OBSIDIAN_BLOCK_ID_ENDOFLINE_REGEX, PREFERRED_DATE_FORMAT, ALLOWED_DATE_FORMATS, IMAGE_FORMATS, AUDIO_FORMATS, VIDEO_FORMATS, COLLAPSE_ICON, TICKS_PER_DAY, SR_HTML_COMMENT_BEGIN, SR_HTML_COMMENT_END, SR_TAB_VIEW;
+var init_constants = __esm({
+  "src/constants.ts"() {
+    SCHEDULING_INFO_REGEX = /^---\r?\n((?:.*\r?\n)*)sr-due: (.+)\r?\nsr-interval: (\d+)\r?\nsr-ease: (\d+)\r?\n((?:.*\r?\n)?)---/;
+    YAML_FRONT_MATTER_REGEX = /^---\r?\n((?:.*\r?\n)*?)---/;
+    MULTI_SCHEDULING_EXTRACTOR = /!([\d-]+),(\d+),(\d+)/gm;
+    LEGACY_SCHEDULING_EXTRACTOR = /<!--SR:([\d-]+),(\d+),(\d+)-->/gm;
+    OBSIDIAN_TAG_AT_STARTOFLINE_REGEX = /^#[^\s#]+/gi;
+    OBSIDIAN_BLOCK_ID_ENDOFLINE_REGEX = / (\^[a-zA-Z0-9-]+)$/;
+    PREFERRED_DATE_FORMAT = "YYYY-MM-DD";
+    ALLOWED_DATE_FORMATS = [PREFERRED_DATE_FORMAT, "DD-MM-YYYY", "ddd MMM DD YYYY"];
+    IMAGE_FORMATS = [
+      "jpg",
+      "jpeg",
+      "gif",
+      "png",
+      "svg",
+      "webp",
+      "apng",
+      "avif",
+      "jfif",
+      "pjpeg",
+      "pjp",
+      "bmp"
+    ];
+    AUDIO_FORMATS = ["mp3", "webm", "m4a", "wav", "ogg"];
+    VIDEO_FORMATS = ["mp4", "mkv", "avi", "mov"];
+    COLLAPSE_ICON = '<svg viewBox="0 0 100 100" width="8" height="8" class="svg-icon right-triangle"><path fill="currentColor" stroke="currentColor" d="M94.9,20.8c-1.4-2.5-4.1-4.1-7.1-4.1H12.2c-3,0-5.7,1.6-7.1,4.1c-1.3,2.4-1.2,5.2,0.2,7.6L43.1,88c1.5,2.3,4,3.7,6.9,3.7 s5.4-1.4,6.9-3.7l37.8-59.6C96.1,26,96.2,23.2,94.9,20.8L94.9,20.8z"></path></svg>';
+    TICKS_PER_DAY = 24 * 3600 * 1e3;
+    SR_HTML_COMMENT_BEGIN = "<!--SR:";
+    SR_HTML_COMMENT_END = "-->";
+    SR_TAB_VIEW = "spaced-repetition-tab-view";
+  }
+});
+
 // node_modules/pagerank.js/lib/index.js
 var require_lib = __commonJS({
   "node_modules/pagerank.js/lib/index.js"(exports, module2) {
@@ -4939,6 +5015,202 @@ var require_minimatch = __commonJS({
   }
 });
 
+// src/topic-path.ts
+var topic_path_exports = {};
+__export(topic_path_exports, {
+  TopicPath: () => TopicPath,
+  TopicPathList: () => TopicPathList,
+  TopicPathWithWs: () => TopicPathWithWs
+});
+var TopicPath, TopicPathList, TopicPathWithWs;
+var init_topic_path = __esm({
+  "src/topic-path.ts"() {
+    init_constants();
+    TopicPath = class {
+      constructor(path2) {
+        if (path2 == null)
+          throw "null path";
+        if (path2.some((str) => str.includes("/")))
+          throw "path entries must not contain '/'";
+        this.path = path2;
+      }
+      get hasPath() {
+        return this.path.length > 0;
+      }
+      get isEmptyPath() {
+        return !this.hasPath;
+      }
+      static get emptyPath() {
+        return new TopicPath([]);
+      }
+      shift() {
+        if (this.isEmptyPath)
+          throw "can't shift an empty path";
+        return this.path.shift();
+      }
+      clone() {
+        return new TopicPath([...this.path]);
+      }
+      formatAsTag() {
+        if (this.isEmptyPath)
+          throw "Empty path";
+        const result = "#" + this.path.join("/");
+        return result;
+      }
+      static getTopicPathOfFile(noteFile, settings) {
+        let deckPath = [];
+        let result = TopicPath.emptyPath;
+        if (settings.convertFoldersToDecks) {
+          deckPath = noteFile.path.split("/");
+          deckPath.pop();
+          if (deckPath.length != 0) {
+            result = new TopicPath(deckPath);
+          }
+        } else {
+          const tagList = this.getTopicPathsFromTagList(
+            noteFile.getAllTagsFromCache()
+          );
+          outer:
+            for (const tagToReview of this.getTopicPathsFromTagList(
+              settings.flashcardTags
+            )) {
+              for (const tag of tagList) {
+                if (tagToReview.isSameOrAncestorOf(tag)) {
+                  result = tag;
+                  break outer;
+                }
+              }
+            }
+        }
+        return result;
+      }
+      isSameOrAncestorOf(topicPath) {
+        if (this.isEmptyPath)
+          return topicPath.isEmptyPath;
+        if (this.path.length > topicPath.path.length)
+          return false;
+        for (let i2 = 0; i2 < this.path.length; i2++) {
+          if (this.path[i2] != topicPath.path[i2])
+            return false;
+        }
+        return true;
+      }
+      static getTopicPathFromCardText(cardText) {
+        var _a;
+        const path2 = (_a = cardText.trimStart().match(OBSIDIAN_TAG_AT_STARTOFLINE_REGEX)) == null ? void 0 : _a.slice(-1)[0];
+        return (path2 == null ? void 0 : path2.length) > 0 ? TopicPath.getTopicPathFromTag(path2) : null;
+      }
+      static getTopicPathsFromTagList(tagList) {
+        const result = [];
+        for (const tag of tagList) {
+          if (this.isValidTag(tag))
+            result.push(TopicPath.getTopicPathFromTag(tag));
+        }
+        return result;
+      }
+      static isValidTag(tag) {
+        if (tag == null || tag.length == 0)
+          return false;
+        if (tag[0] != "#")
+          return false;
+        if (tag.length == 1)
+          return false;
+        return true;
+      }
+      static getTopicPathFromTag(tag) {
+        if (tag == null || tag.length == 0)
+          throw "Null/empty tag";
+        if (tag[0] != "#")
+          throw "Tag must start with #";
+        if (tag.length == 1)
+          throw "Invalid tag";
+        const path2 = tag.replace("#", "").split("/").filter((str) => str);
+        return new TopicPath(path2);
+      }
+      static getFolderPathFromFilename(noteFile, settings) {
+        let result = TopicPath.emptyPath;
+        if (settings.convertFoldersToDecks) {
+          const deckPath = noteFile.path.split("/");
+          deckPath.pop();
+          if (deckPath.length != 0) {
+            result = new TopicPath(deckPath);
+          }
+        }
+        return result;
+      }
+    };
+    TopicPathList = class {
+      constructor(list, lineNum = null) {
+        if (list == null)
+          throw "TopicPathList null";
+        this.list = list;
+        this.lineNum = lineNum;
+      }
+      get length() {
+        return this.list.length;
+      }
+      isAnyElementSameOrAncestorOf(topicPath) {
+        return this.list.some((item) => item.isSameOrAncestorOf(topicPath));
+      }
+      formatPsv() {
+        return this.format("|");
+      }
+      format(sep) {
+        return this.list.map((topicPath) => topicPath.formatAsTag()).join(sep);
+      }
+      static empty() {
+        return new TopicPathList([]);
+      }
+      static fromPsv(str, lineNum) {
+        const result = TopicPathList.convertTagListToTopicPathList(str.split("|"));
+        result.lineNum = lineNum;
+        return result;
+      }
+      //
+      // tagList is a list of tags such as:
+      //      ["#flashcards/computing", "#boring-stuff", "#news-worthy"]
+      // validTopicPathList is a list of valid tags, such as those from settings.flashcardTags,E.g.
+      //      ["#flashcards"]
+      //
+      // This returns a filtered version of tagList, containing only topic paths that are considered valid.
+      // Validity is defined as "isAnyElementSameOrAncestorOf", and "#flashcards" is considered the ancestor of
+      // "#flashcards/computing".
+      //
+      // Therefore this would return:
+      //      "#flashcards/computing" (but not "#boring-stuff" or "#news-worthy")
+      //
+      static filterValidTopicPathsFromTagList(list, validTopicPathList, lineNum = null) {
+        const result = [];
+        for (const tag of list.list) {
+          if (validTopicPathList.isAnyElementSameOrAncestorOf(tag))
+            result.push(tag);
+        }
+        return new TopicPathList(result, lineNum);
+      }
+      static convertTagListToTopicPathList(tagList) {
+        const result = [];
+        for (const tag of tagList) {
+          if (TopicPath.isValidTag(tag))
+            result.push(TopicPath.getTopicPathFromTag(tag));
+        }
+        return new TopicPathList(result);
+      }
+    };
+    TopicPathWithWs = class {
+      constructor(topicPath, preWhitespace, postWhitespace) {
+        if (!topicPath || topicPath.isEmptyPath)
+          throw "topicPath null";
+        this.topicPath = topicPath;
+        this.preWhitespace = preWhitespace;
+        this.postWhitespace = postWhitespace;
+      }
+      formatWithWs() {
+        return `${this.preWhitespace}${this.topicPath.formatAsTag()}${this.postWhitespace}`;
+      }
+    };
+  }
+});
+
 // node_modules/clozecraft/dist/implementation/utils.js
 var require_utils = __commonJS({
   "node_modules/clozecraft/dist/implementation/utils.js"(exports) {
@@ -5611,20 +5883,7 @@ __export(main_exports, {
 });
 module.exports = __toCommonJS(main_exports);
 var import_obsidian16 = require("obsidian");
-
-// src/algorithms/base/repetition-item.ts
-var RepetitionItem = class {
-  // scheduling
-  get hasSchedule() {
-    return this.scheduleInfo != null;
-  }
-  get isNew() {
-    return !this.hasSchedule;
-  }
-  get isDue() {
-    return this.hasSchedule && this.scheduleInfo.isDue();
-  }
-};
+init_repetition_item();
 
 // src/algorithms/base/srs-algorithm.ts
 var SrsAlgorithm = class {
@@ -5648,37 +5907,11 @@ var ObsidianVaultNoteLinkInfoFinder = class {
 
 // src/algorithms/osr/srs-algorithm-osr.ts
 var import_moment2 = __toESM(require_moment());
+init_repetition_item();
 
-// src/constants.ts
-var SCHEDULING_INFO_REGEX = /^---\r?\n((?:.*\r?\n)*)sr-due: (.+)\r?\nsr-interval: (\d+)\r?\nsr-ease: (\d+)\r?\n((?:.*\r?\n)?)---/;
-var YAML_FRONT_MATTER_REGEX = /^---\r?\n((?:.*\r?\n)*?)---/;
-var MULTI_SCHEDULING_EXTRACTOR = /!([\d-]+),(\d+),(\d+)/gm;
-var LEGACY_SCHEDULING_EXTRACTOR = /<!--SR:([\d-]+),(\d+),(\d+)-->/gm;
-var OBSIDIAN_TAG_AT_STARTOFLINE_REGEX = /^#[^\s#]+/gi;
-var OBSIDIAN_BLOCK_ID_ENDOFLINE_REGEX = / (\^[a-zA-Z0-9-]+)$/;
-var PREFERRED_DATE_FORMAT = "YYYY-MM-DD";
-var ALLOWED_DATE_FORMATS = [PREFERRED_DATE_FORMAT, "DD-MM-YYYY", "ddd MMM DD YYYY"];
-var IMAGE_FORMATS = [
-  "jpg",
-  "jpeg",
-  "gif",
-  "png",
-  "svg",
-  "webp",
-  "apng",
-  "avif",
-  "jfif",
-  "pjpeg",
-  "pjp",
-  "bmp"
-];
-var AUDIO_FORMATS = ["mp3", "webm", "m4a", "wav", "ogg"];
-var VIDEO_FORMATS = ["mp4", "mkv", "avi", "mov"];
-var COLLAPSE_ICON = '<svg viewBox="0 0 100 100" width="8" height="8" class="svg-icon right-triangle"><path fill="currentColor" stroke="currentColor" d="M94.9,20.8c-1.4-2.5-4.1-4.1-7.1-4.1H12.2c-3,0-5.7,1.6-7.1,4.1c-1.3,2.4-1.2,5.2,0.2,7.6L43.1,88c1.5,2.3,4,3.7,6.9,3.7 s5.4-1.4,6.9-3.7l37.8-59.6C96.1,26,96.2,23.2,94.9,20.8L94.9,20.8z"></path></svg>';
-var TICKS_PER_DAY = 24 * 3600 * 1e3;
-var SR_HTML_COMMENT_BEGIN = "<!--SR:";
-var SR_HTML_COMMENT_END = "-->";
-var SR_TAB_VIEW = "spaced-repetition-tab-view";
+// src/algorithms/osr/note-scheduling.ts
+init_repetition_item();
+init_constants();
 
 // src/lang/helpers.ts
 var import_obsidian = require("obsidian");
@@ -6319,6 +6552,8 @@ var en_default = {
   GOOD: "Good",
   EASY: "Easy",
   SHOW_ANSWER: "Show Answer",
+  END_TIME: "End Time",
+  END_HOUR: "End Hour",
   CARD_PROGRESS_RESET: "Card's progress has been reset.",
   SAVE: "Save",
   CANCEL: "Cancel",
@@ -8398,6 +8633,8 @@ var uk_default = {
   GOOD: "\u0414\u043E\u0431\u0440\u0435",
   EASY: "\u041B\u0435\u0433\u043A\u043E",
   SHOW_ANSWER: "\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u0438 \u0432\u0456\u0434\u043F\u043E\u0432\u0456\u0434\u044C",
+  END_TIME: "\u0427\u0430\u0441 \u0437\u0430\u043A\u0456\u043D\u0447\u0435\u043D\u043D\u044F",
+  END_HOUR: "\u0413\u043E\u0434\u0438\u043D\u0430 \u0437\u0430\u043A\u0456\u043D\u0447\u0435\u043D\u043D\u044F",
   CARD_PROGRESS_RESET: "\u041F\u0440\u043E\u0433\u0440\u0435\u0441 \u043A\u0430\u0440\u0442\u043A\u0438 \u0441\u043A\u0438\u043D\u0443\u0442\u043E",
   SAVE: "\u0417\u0431\u0435\u0440\u0435\u0433\u0442\u0438",
   CANCEL: "\u0421\u043A\u0430\u0441\u0443\u0432\u0430\u0442\u0438",
@@ -9109,8 +9346,12 @@ function textInterval(interval, isMobile) {
   }
 }
 
+// src/algorithms/base/rep-item-schedule-info.ts
+init_constants();
+
 // src/utils/dates.ts
 var import_moment = __toESM(require_moment());
+init_constants();
 function formatDateYYYYMMDD(ticks) {
   return ticks.format(PREFERRED_DATE_FORMAT);
 }
@@ -9449,6 +9690,10 @@ var DataStoreAlgorithm = class {
   }
 };
 
+// src/flashcard-review-sequencer.ts
+init_repetition_item();
+init_constants();
+
 // src/data-stores/base/data-store.ts
 var DataStore = class {
   static getInstance() {
@@ -9459,191 +9704,8 @@ var DataStore = class {
   }
 };
 
-// src/topic-path.ts
-var TopicPath = class {
-  constructor(path2) {
-    if (path2 == null)
-      throw "null path";
-    if (path2.some((str) => str.includes("/")))
-      throw "path entries must not contain '/'";
-    this.path = path2;
-  }
-  get hasPath() {
-    return this.path.length > 0;
-  }
-  get isEmptyPath() {
-    return !this.hasPath;
-  }
-  static get emptyPath() {
-    return new TopicPath([]);
-  }
-  shift() {
-    if (this.isEmptyPath)
-      throw "can't shift an empty path";
-    return this.path.shift();
-  }
-  clone() {
-    return new TopicPath([...this.path]);
-  }
-  formatAsTag() {
-    if (this.isEmptyPath)
-      throw "Empty path";
-    const result = "#" + this.path.join("/");
-    return result;
-  }
-  static getTopicPathOfFile(noteFile, settings) {
-    let deckPath = [];
-    let result = TopicPath.emptyPath;
-    if (settings.convertFoldersToDecks) {
-      deckPath = noteFile.path.split("/");
-      deckPath.pop();
-      if (deckPath.length != 0) {
-        result = new TopicPath(deckPath);
-      }
-    } else {
-      const tagList = this.getTopicPathsFromTagList(
-        noteFile.getAllTagsFromCache()
-      );
-      outer:
-        for (const tagToReview of this.getTopicPathsFromTagList(
-          settings.flashcardTags
-        )) {
-          for (const tag of tagList) {
-            if (tagToReview.isSameOrAncestorOf(tag)) {
-              result = tag;
-              break outer;
-            }
-          }
-        }
-    }
-    return result;
-  }
-  isSameOrAncestorOf(topicPath) {
-    if (this.isEmptyPath)
-      return topicPath.isEmptyPath;
-    if (this.path.length > topicPath.path.length)
-      return false;
-    for (let i2 = 0; i2 < this.path.length; i2++) {
-      if (this.path[i2] != topicPath.path[i2])
-        return false;
-    }
-    return true;
-  }
-  static getTopicPathFromCardText(cardText) {
-    var _a;
-    const path2 = (_a = cardText.trimStart().match(OBSIDIAN_TAG_AT_STARTOFLINE_REGEX)) == null ? void 0 : _a.slice(-1)[0];
-    return (path2 == null ? void 0 : path2.length) > 0 ? TopicPath.getTopicPathFromTag(path2) : null;
-  }
-  static getTopicPathsFromTagList(tagList) {
-    const result = [];
-    for (const tag of tagList) {
-      if (this.isValidTag(tag))
-        result.push(TopicPath.getTopicPathFromTag(tag));
-    }
-    return result;
-  }
-  static isValidTag(tag) {
-    if (tag == null || tag.length == 0)
-      return false;
-    if (tag[0] != "#")
-      return false;
-    if (tag.length == 1)
-      return false;
-    return true;
-  }
-  static getTopicPathFromTag(tag) {
-    if (tag == null || tag.length == 0)
-      throw "Null/empty tag";
-    if (tag[0] != "#")
-      throw "Tag must start with #";
-    if (tag.length == 1)
-      throw "Invalid tag";
-    const path2 = tag.replace("#", "").split("/").filter((str) => str);
-    return new TopicPath(path2);
-  }
-  static getFolderPathFromFilename(noteFile, settings) {
-    let result = TopicPath.emptyPath;
-    if (settings.convertFoldersToDecks) {
-      const deckPath = noteFile.path.split("/");
-      deckPath.pop();
-      if (deckPath.length != 0) {
-        result = new TopicPath(deckPath);
-      }
-    }
-    return result;
-  }
-};
-var TopicPathList = class {
-  constructor(list, lineNum = null) {
-    if (list == null)
-      throw "TopicPathList null";
-    this.list = list;
-    this.lineNum = lineNum;
-  }
-  get length() {
-    return this.list.length;
-  }
-  isAnyElementSameOrAncestorOf(topicPath) {
-    return this.list.some((item) => item.isSameOrAncestorOf(topicPath));
-  }
-  formatPsv() {
-    return this.format("|");
-  }
-  format(sep) {
-    return this.list.map((topicPath) => topicPath.formatAsTag()).join(sep);
-  }
-  static empty() {
-    return new TopicPathList([]);
-  }
-  static fromPsv(str, lineNum) {
-    const result = TopicPathList.convertTagListToTopicPathList(str.split("|"));
-    result.lineNum = lineNum;
-    return result;
-  }
-  //
-  // tagList is a list of tags such as:
-  //      ["#flashcards/computing", "#boring-stuff", "#news-worthy"]
-  // validTopicPathList is a list of valid tags, such as those from settings.flashcardTags,E.g.
-  //      ["#flashcards"]
-  //
-  // This returns a filtered version of tagList, containing only topic paths that are considered valid.
-  // Validity is defined as "isAnyElementSameOrAncestorOf", and "#flashcards" is considered the ancestor of
-  // "#flashcards/computing".
-  //
-  // Therefore this would return:
-  //      "#flashcards/computing" (but not "#boring-stuff" or "#news-worthy")
-  //
-  static filterValidTopicPathsFromTagList(list, validTopicPathList, lineNum = null) {
-    const result = [];
-    for (const tag of list.list) {
-      if (validTopicPathList.isAnyElementSameOrAncestorOf(tag))
-        result.push(tag);
-    }
-    return new TopicPathList(result, lineNum);
-  }
-  static convertTagListToTopicPathList(tagList) {
-    const result = [];
-    for (const tag of tagList) {
-      if (TopicPath.isValidTag(tag))
-        result.push(TopicPath.getTopicPathFromTag(tag));
-    }
-    return new TopicPathList(result);
-  }
-};
-var TopicPathWithWs = class {
-  constructor(topicPath, preWhitespace, postWhitespace) {
-    if (!topicPath || topicPath.isEmptyPath)
-      throw "topicPath null";
-    this.topicPath = topicPath;
-    this.preWhitespace = preWhitespace;
-    this.postWhitespace = postWhitespace;
-  }
-  formatWithWs() {
-    return `${this.preWhitespace}${this.topicPath.formatAsTag()}${this.postWhitespace}`;
-  }
-};
-
 // src/flashcard-review-sequencer.ts
+init_topic_path();
 var DeckStats = class {
   constructor(dueCount, newCount, totalCount) {
     this.dueCount = dueCount;
@@ -9801,6 +9863,7 @@ var FlashcardReviewSequencer = class {
 };
 
 // src/deck.ts
+init_topic_path();
 var Deck2 = class {
   constructor(deckName, parent) {
     this.deckName = deckName;
@@ -10464,6 +10527,7 @@ var Stats = class {
 };
 
 // src/deck-tree-stats-calculator.ts
+init_topic_path();
 var DeckTreeStatsCalculator = class {
   calculate(deckTree) {
     const iteratorOrder = {
@@ -10491,6 +10555,8 @@ var DeckTreeStatsCalculator = class {
 };
 
 // src/due-date-histogram.ts
+init_constants();
+init_topic_path();
 var _DueDateHistogram = class {
   constructor(rec = null) {
     // Key - # of days in future
@@ -11023,6 +11089,7 @@ var Note = class {
 };
 
 // src/card.ts
+init_repetition_item();
 var Card = class extends RepetitionItem {
   constructor(init) {
     super();
@@ -11045,6 +11112,8 @@ var Card = class extends RepetitionItem {
 var import_clozecraft = __toESM(require_dist());
 
 // src/question.ts
+init_constants();
+init_topic_path();
 var QuestionText = class {
   constructor(original, topicPathWithWs, actualQuestion, textDirection, blockId) {
     this.original = original;
@@ -11255,6 +11324,7 @@ ${srComment}` : replacementText;
 };
 
 // src/parser.ts
+init_repetition_item();
 var debugParser = false;
 function setDebugParser(value) {
   debugParser = value;
@@ -11667,6 +11737,7 @@ var DEFAULT_SETTINGS = {
   flashcardHardText: "\u274C Bad",
   reviewButtonDelay: 1e3,
   openViewInNewTab: false,
+  reviewEndHour: 23,
   // algorithm
   algorithm: "SM-2-OSR" /* SM_2_OSR */,
   baseEase: 250,
@@ -11736,6 +11807,7 @@ var SettingsUtil = class {
 };
 
 // src/note-question-parser.ts
+init_topic_path();
 var NoteQuestionParser = class {
   constructor(settings) {
     this.settings = settings;
@@ -11988,6 +12060,7 @@ var NoteFileLoader = class {
 };
 
 // src/core.ts
+init_topic_path();
 var OsrCore = class {
   constructor() {
     this._reviewableDeckTree = new Deck2("root", null);
@@ -12154,6 +12227,7 @@ var OsrAppCore = class extends OsrCore {
 
 // src/data-store-algorithm/data-store-in-note-algorithm-osr.ts
 var import_moment3 = __toESM(require_moment());
+init_constants();
 var DataStoreInNoteAlgorithmOsr = class {
   constructor(settings) {
     this.settings = settings;
@@ -12233,6 +12307,7 @@ ${fileText}`;
 
 // src/data-stores/notes/notes.ts
 var import_obsidian4 = require("obsidian");
+init_constants();
 var StoreInNotes = class {
   constructor(settings) {
     this.settings = settings;
@@ -12297,6 +12372,7 @@ var StoreInNotes = class {
 
 // src/gui/review-queue-list-view.tsx
 var import_obsidian5 = require("obsidian");
+init_constants();
 var REVIEW_QUEUE_VIEW_TYPE = "review-queue-list-view";
 var ReviewQueueListView = class extends import_obsidian5.ItemView {
   constructor(leaf, nextNoteReviewHandler, settings) {
@@ -27289,9 +27365,11 @@ var import_obsidian11 = require("obsidian");
 // src/gui/card-ui.tsx
 var import_moment4 = __toESM(require_moment());
 var import_obsidian9 = require("obsidian");
+init_repetition_item();
 
 // src/utils/renderers.ts
 var import_obsidian8 = require("obsidian");
+init_constants();
 var RenderMarkdownWrapper = class {
   constructor(app, plugin, notePath) {
     this.app = app;
@@ -27479,6 +27557,67 @@ var CardUI = class {
     this.controls = this.header.createDiv();
     this.controls.addClass("sr-controls");
     this._createCardControls();
+    this.cardsPerHourInfo = this.header.createDiv();
+    this.cardsPerHourInfo.addClass("sr-cards-per-hour-info");
+    const cardsPerHourValue = this.cardsPerHourInfo.createEl("span");
+    cardsPerHourValue.addClass("sr-cards-per-hour-value");
+    const cardsPerHourLabel = this.cardsPerHourInfo.createEl("span");
+    cardsPerHourLabel.className = "sr-cards-per-hour-label";
+    cardsPerHourLabel.innerText = "per hour";
+    if (this.settings.cardsLeftThisHour === void 0)
+      this.settings.cardsLeftThisHour = 0;
+    if (this.settings.lastHour === void 0)
+      this.settings.lastHour = -1;
+    const updateCardsPerHour = () => {
+      const nowHour = new Date().getHours();
+      const stats = this.reviewSequencer.getDeckStats((init_topic_path(), __toCommonJS(topic_path_exports)).TopicPath.emptyPath);
+      const totalCards = stats.dueCount + stats.newCount;
+      const endHour = this.settings.reviewEndHour;
+      let hoursLeft;
+      if (endHour > nowHour) {
+        hoursLeft = endHour - nowHour;
+      } else {
+        hoursLeft = 24 - nowHour + endHour;
+      }
+      if (hoursLeft <= 0)
+        hoursLeft = 1;
+      if (this.settings.lastHour === void 0 || this.settings.lastTotalCards === void 0 || this.settings.cardsQuotaPerHour === void 0 || this.settings.cardsQuotaPerHour.length !== hoursLeft || this.settings.lastHour !== nowHour) {
+        const baseQuota = Math.ceil(totalCards / hoursLeft);
+        this.settings.cardsQuotaPerHour = Array(hoursLeft).fill(baseQuota);
+        this.settings.lastHour = nowHour;
+        this.settings.lastTotalCards = totalCards;
+        this.plugin.savePluginData();
+      } else if (totalCards > this.settings.lastTotalCards) {
+        const newCards = totalCards - this.settings.lastTotalCards;
+        const addPerHour = Math.floor(newCards / hoursLeft);
+        let remainder = newCards % hoursLeft;
+        for (let i2 = 0; i2 < hoursLeft; i2++) {
+          this.settings.cardsQuotaPerHour[i2] += addPerHour;
+          if (remainder > 0) {
+            this.settings.cardsQuotaPerHour[i2]++;
+            remainder--;
+          }
+        }
+        this.settings.lastTotalCards = totalCards;
+        this.plugin.savePluginData();
+      }
+      cardsPerHourValue.innerText = this.settings.cardsQuotaPerHour[0].toString();
+    };
+    updateCardsPerHour();
+    const origProcessReview = this._processReview.bind(this);
+    this._processReview = async (response) => {
+      await origProcessReview(response);
+      const ReviewResponseEnum = (init_repetition_item(), __toCommonJS(repetition_item_exports)).ReviewResponse;
+      if (response === ReviewResponseEnum.Good || response === ReviewResponseEnum.Easy) {
+        if (this.settings.cardsQuotaPerHour && this.settings.cardsQuotaPerHour.length > 0) {
+          this.settings.cardsQuotaPerHour[0] = Math.max(0, this.settings.cardsQuotaPerHour[0] - 1);
+          this.plugin.savePluginData();
+        }
+      }
+      if (this.settings.cardsQuotaPerHour && this.settings.cardsQuotaPerHour.length > 0) {
+        cardsPerHourValue.innerText = this.settings.cardsQuotaPerHour[0].toString();
+      }
+    };
     if (this.settings.showContextInCards) {
       this.context = this.view.createDiv();
       this.context.addClass("sr-context");
@@ -27834,6 +27973,8 @@ var CardUI = class {
 // src/gui/deck-ui.tsx
 var import_vhtml3 = __toESM(require_vhtml());
 var import_moment5 = __toESM(require_moment());
+init_constants();
+init_topic_path();
 var DeckUI = class {
   constructor(plugin, settings, reviewSequencer, contentEl, startReviewOfDeck) {
     this.plugin = plugin;
@@ -27924,6 +28065,71 @@ var DeckUI = class {
       await this.reviewSequencer.reloadCardsForDate((0, import_moment5.default)());
       await this.updateDisplay();
     });
+    const endHourContainer = this.stats.createDiv();
+    endHourContainer.addClass("sr-end-hour-container");
+    const endHourLabel = endHourContainer.createEl("span");
+    endHourLabel.setText(t("END_HOUR") + ": ");
+    endHourLabel.addClass("sr-end-hour-label");
+    const endHourSelect = endHourContainer.createEl("select");
+    endHourSelect.addClass("sr-end-hour-select");
+    for (let hour = 0; hour <= 23; hour++) {
+      const option = endHourSelect.createEl("option");
+      option.value = hour.toString();
+      option.text = hour.toString().padStart(2, "0") + ":00";
+      if (hour === this.plugin.data.settings.reviewEndHour) {
+        option.selected = true;
+      }
+    }
+    endHourSelect.addEventListener("change", (e2) => {
+      const value = parseInt(e2.target.value);
+      if (!isNaN(value) && value >= 0 && value <= 23) {
+        this.plugin.data.settings.reviewEndHour = value;
+        this.plugin.savePluginData();
+        updateCardsPerHour();
+      }
+    });
+    const cardsPerHourContainer = endHourContainer.createDiv();
+    cardsPerHourContainer.addClass("sr-cards-per-hour-container");
+    const cardsPerHourValue = cardsPerHourContainer.createEl("span");
+    cardsPerHourValue.className = "sr-cards-per-hour-value";
+    const cardsPerHourLabel = cardsPerHourContainer.createEl("span");
+    cardsPerHourLabel.className = "sr-cards-per-hour-label";
+    cardsPerHourLabel.innerText = "per hour";
+    const updateCardsPerHour = () => {
+      const nowHour = new Date().getHours();
+      const totalCards = statistics.dueCount + statistics.newCount;
+      const endHour = this.plugin.data.settings.reviewEndHour;
+      let hoursLeft;
+      if (endHour > nowHour) {
+        hoursLeft = endHour - nowHour;
+      } else {
+        hoursLeft = 24 - nowHour + endHour;
+      }
+      if (hoursLeft <= 0)
+        hoursLeft = 1;
+      if (this.plugin.data.settings.lastHour === void 0 || this.plugin.data.settings.lastTotalCards === void 0 || this.plugin.data.settings.cardsQuotaPerHour === void 0 || this.plugin.data.settings.cardsQuotaPerHour.length !== hoursLeft || this.plugin.data.settings.lastHour !== nowHour) {
+        const baseQuota = Math.ceil(totalCards / hoursLeft);
+        this.plugin.data.settings.cardsQuotaPerHour = Array(hoursLeft).fill(baseQuota);
+        this.plugin.data.settings.lastHour = nowHour;
+        this.plugin.data.settings.lastTotalCards = totalCards;
+        this.plugin.savePluginData();
+      } else if (totalCards > this.plugin.data.settings.lastTotalCards) {
+        const newCards = totalCards - this.plugin.data.settings.lastTotalCards;
+        const addPerHour = Math.floor(newCards / hoursLeft);
+        let remainder = newCards % hoursLeft;
+        for (let i2 = 0; i2 < hoursLeft; i2++) {
+          this.plugin.data.settings.cardsQuotaPerHour[i2] += addPerHour;
+          if (remainder > 0) {
+            this.plugin.data.settings.cardsQuotaPerHour[i2]++;
+            remainder--;
+          }
+        }
+        this.plugin.data.settings.lastTotalCards = totalCards;
+        this.plugin.savePluginData();
+      }
+      cardsPerHourValue.innerText = this.plugin.data.settings.cardsQuotaPerHour[0].toString();
+    };
+    updateCardsPerHour();
     this._createHeaderStatsContainer(t("DUE_CARDS"), statistics.dueCount, "sr-bg-green");
     this._createHeaderStatsContainer(t("NEW_CARDS"), statistics.newCount, "sr-bg-blue");
     this._createHeaderStatsContainer(t("TOTAL_CARDS"), statistics.totalCount, "sr-bg-red");
@@ -28192,6 +28398,7 @@ var FlashcardModal = class extends import_obsidian11.Modal {
 
 // src/gui/sr-tab-view.tsx
 var import_obsidian12 = require("obsidian");
+init_constants();
 var SRTabView = class extends import_obsidian12.ItemView {
   // Counter for catching the first inevitable error but the letting the other through
   constructor(leaf, plugin, loadReviewSequencerData) {
@@ -28323,6 +28530,7 @@ var SRTabView = class extends import_obsidian12.ItemView {
 };
 
 // src/gui/tab-view-manager.tsx
+init_constants();
 var TabViewManager = class {
   // Add any needed resourced
   constructor(plugin) {
@@ -28686,6 +28894,7 @@ var QuestionPostponementList = class {
 };
 
 // src/main.ts
+init_topic_path();
 var SRPlugin = class extends import_obsidian16.Plugin {
   constructor() {
     super(...arguments);

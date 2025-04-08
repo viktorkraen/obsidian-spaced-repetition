@@ -49,6 +49,7 @@
     "flashcardHardText": "❌ Bad",
     "reviewButtonDelay": 1000,
     "openViewInNewTab": false,
+    "reviewEndHour": 23,
     "algorithm": "SM-2-OSR",
     "baseEase": 250,
     "lapsesIntervalChange": 0.5,
@@ -72,7 +73,20 @@
       "pt": "Portuguese"
     },
     "ttsVolume": 1,
-    "ttsSpeed": 0.6
+    "ttsSpeed": 0.6,
+    "cardsLeftThisHour": 10,
+    "lastHour": 22,
+    "lastTotalCards": 88,
+    "cardsQuotaPerHour": [
+      11,
+      11,
+      11,
+      11,
+      11,
+      11,
+      11,
+      11
+    ]
   },
   "buryDate": "",
   "buryList": [],

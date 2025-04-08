@@ -48,6 +48,11 @@ export interface SRSettings {
     flashcardHardText: string;
     reviewButtonDelay: number;
     openViewInNewTab: boolean;
+    reviewEndHour: number;
+    cardsLeftThisHour?: number;
+    lastHour?: number;
+    lastTotalCards?: number;
+    cardsQuotaPerHour?: number[];
 
     // algorithm
     algorithm: string;
@@ -110,6 +115,7 @@ export const DEFAULT_SETTINGS: SRSettings = {
     flashcardHardText: "❌ Bad",
     reviewButtonDelay: 1000,
     openViewInNewTab: false,
+    reviewEndHour: 23,
 
     // algorithm
     algorithm: Algorithm.SM_2_OSR,

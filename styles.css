@@ -284,6 +284,23 @@ body:not(.native-scrollbars) #sr-modal .modal-close-button {
     flex-grow: 1;
 }
 
+.sr-flashcard .sr-time-input {
+    display: block;
+    width: 100%;
+    margin: 12px 0;
+    padding: 8px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    background-color: var(--background-primary);
+    color: var(--text-normal);
+    font-size: var(--font-ui-small);
+}
+
+.sr-flashcard .sr-time-input:focus {
+    border-color: var(--interactive-accent);
+    box-shadow: 0 0 0 2px var(--interactive-accent-hover);
+}
+
 .sr-flashcard .sr-card-divide {
     backdrop-filter: invert(40%);
     border-top-style: dashed;
@@ -811,4 +828,42 @@ th.gridjs-th:last-child {
 
 .sr-date-sim-reset:hover {
     background-color: var(--background-modifier-hover);
+}
+
+.sr-end-time-container {
+    display: flex;
+    align-items: center;
+    margin-top: 16px;
+    padding: 12px;
+    background-color: var(--background-secondary);
+    border-radius: 4px;
+    border: 1px solid var(--background-modifier-border);
+}
+
+.sr-end-time-label {
+    margin-right: 12px;
+    font-size: var(--font-ui-medium);
+    color: var(--text-normal);
+    font-weight: bold;
+}
+
+.sr-end-time-input {
+    padding: 6px 12px;
+    border: 1px solid var(--interactive-accent);
+    border-radius: 4px;
+    background-color: var(--background-primary);
+    color: var(--text-normal);
+    font-size: var(--font-ui-medium);
+    min-width: 100px;
+}
+
+.sr-end-time-input:focus {
+    border-color: var(--interactive-accent);
+    box-shadow: 0 0 0 2px var(--interactive-accent-hover);
+    outline: none;
+}
+.sr-cards-per-hour-value {
+    text-align: center;
+    color: #4caf50; /* зелений */
+    margin-right: 4px;
 }

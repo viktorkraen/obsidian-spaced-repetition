@@ -14,6 +14,8 @@ export default {
     GOOD: "Good",
     EASY: "Easy",
     SHOW_ANSWER: "Show Answer",
+    END_TIME: "End Time",
+    END_HOUR: "End Hour",
     CARD_PROGRESS_RESET: "Card's progress has been reset.",
     SAVE: "Save",
     CANCEL: "Cancel",
